@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>YT/TikTok/Instagram/Photos → FB Bot v5</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:#0f1117;color:#e5e7eb}
+button,input,textarea,select{font:inherit}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:#0b0d12;border-right:1px solid #20242f;padding:18px 14px}
+.brand{font-size:20px;font-weight:700;margin-bottom:18px;color:#a78bfa}
+.nav-section{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#6b7280;margin:18px 10px 8px}
+.nav-btn{display:block;width:100%;text-align:left;background:transparent;color:#cbd5e1;border:0;border-radius:10px;padding:10px 12px;cursor:pointer;margin-bottom:4px}
+.nav-btn:hover,.nav-btn.active{background:#171b25;color:#fff}
+.main{padding:22px}
+.page{display:none}
+.page.active{display:block}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.title{font-size:30px;font-weight:700}
+.sub{font-size:13px;color:#94a3b8;margin-top:4px}
+.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
+.btn-primary{background:#8b5cf6;color:#fff}
+.btn-secondary{background:#1f2937;color:#e5e7eb;border:1px solid #374151}
+.btn-danger{background:#3f1d1d;color:#fca5a5;border:1px solid #7f1d1d}
+.btn-success{background:#163520;color:#86efac;border:1px solid #166534}
+.btn-warn{background:#3b2f14;color:#fcd34d;border:1px solid #92400e}
+.btn-sm{padding:7px 10px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.stat{background:#151923;border:1px solid #232938;border-radius:14px;padding:14px}
+.stat-label{font-size:12px;color:#94a3b8}
+.stat-value{font-size:28px;font-weight:700;margin-top:8px}
+.notice{background:#131827;border:1px solid #2a3350;border-radius:14px;padding:14px;color:#cbd5e1;line-height:1.6;margin-bottom:14px}
+.section-title{font-size:18px;font-weight:700;margin:20px 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.card{background:#151923;border:1px solid #232938;border-radius:14px;padding:14px}
+.card.run{border-color:#166534}
+.card.sus{border-color:#7f1d1d}
+.card.pau{border-color:#92400e}
+.row{display:flex;align-items:center;gap:10px}
+.spread{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.avatar{width:42px;height:42px;border-radius:999px;background:#312e81;display:flex;align-items:center;justify-content:center;font-weight:700}
+.muted{color:#94a3b8}
+.small{font-size:13px}
+.tiny{font-size:12px}
+.pages{margin-top:10px;max-height:180px;overflow:auto}
+.page-item{display:flex;align-items:center;justify-content:space-between;background:#10141d;border:1px solid #1f2533;border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px}
+.badge-ok{background:#163520;color:#86efac}
+.badge-off{background:#1f2937;color:#cbd5e1}
+.badge-warn{background:#3b2f14;color:#fcd34d}
+.badge-bad{background:#3f1d1d;color:#fca5a5}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.table-wrap{background:#151923;border:1px solid #232938;border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 10px;border-bottom:1px solid #222838;text-align:left;font-size:13px}
+th{font-size:12px;color:#94a3b8;background:#10141d}
+tr:last-child td{border-bottom:0}
+.empty{padding:28px 16px;text-align:center;color:#94a3b8;background:#151923;border:1px solid #232938;border-radius:14px}
+.logs{height:340px;overflow:auto;background:#0b0d12;border:1px solid #232938;border-radius:14px;padding:12px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px}
+.log-line{margin-bottom:8px;white-space:pre-wrap}
+.log-I{color:#cbd5e1}.log-S{color:#86efac}.log-E{color:#fca5a5}.log-W{color:#fcd34d}
+.form-card{background:#151923;border:1px solid #232938;border-radius:14px;padding:16px;max-width:760px}
+.field{margin-bottom:12px}
+.label{display:block;font-size:12px;color:#94a3b8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.input,.textarea,.select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid #30384b;background:#0f131b;color:#fff}
+.cols-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cols-3{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.hint{font-size:12px;color:#94a3b8;line-height:1.6}
+.picker{max-height:180px;overflow:auto;border:1px solid #30384b;border-radius:10px;padding:8px;background:#0f131b}
+.picker-head{font-size:11px;color:#94a3b8;margin:8px 4px}
+.picker-item{display:flex;align-items:center;justify-content:space-between;border:1px solid #242c3b;border-radius:10px;padding:9px 10px;margin-bottom:8px;cursor:pointer;background:#141925}
+.picker-item:hover,.picker-item.sel{border-color:#8b5cf6;background:#1b1730}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.overlay.open{display:flex}
+.modal{width:min(760px,100%);max-height:90vh;overflow:auto;background:#151923;border:1px solid #232938;border-radius:18px;padding:18px}
+.modal-title{font-size:24px;font-weight:700;margin-bottom:14px}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.progress{height:8px;background:#0f131b;border:1px solid #232938;border-radius:999px;overflow:hidden}
+.progress > span{display:block;height:100%;background:#8b5cf6}
+.slider-row{display:flex;align-items:center;gap:10px}
+.slider-row input[type=range]{flex:1;accent-color:#8b5cf6}
+.slider-val{min-width:44px;font-size:13px;color:#e5e7eb;text-align:right}
+.logo-preview-box{display:flex;align-items:center;gap:12px;padding:10px;background:#0f131b;border:1px solid #30384b;border-radius:10px;min-height:54px}
+.logo-preview-box img{max-height:48px;max-width:120px;border-radius:6px;object-fit:contain}
+.logo-set-badge{font-size:11px;padding:3px 8px;border-radius:999px;background:#163520;color:#86efac}
+.alert-box{display:flex;gap:10px;padding:12px;border-radius:12px;margin-bottom:8px;background:#171b25;border:1px solid #293044}
+.mb12{margin-bottom:12px}
+@media (max-width: 980px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 640px){
+  .main{padding:14px}
+  .title{font-size:24px}
+  .topbar,.spread,.row{flex-wrap:wrap}
+  .cols-2,.cols-3,.stats{grid-template-columns:1fr}
+}
+</style>
+</head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// ✅ GROUPS PAGE JS
+// ═══════════════════════════════════════════════════════════════════════════════
+function openAddGroup(){
+  G('grp-id').value=''; G('grp-name').value='';
+  G('add-group-modal').classList.add('open');
+}
+
+function saveGroup(){
+  var gid = G('grp-id').value.trim();
+  var gname = G('grp-name').value.trim();
+  if(!gid){alert('Group ID ya URL daalo'); return;}
+  fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({group_id:gid,group_name:gname})})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.ok){G('add-group-modal').classList.remove('open'); loadGroups();}
+    else alert('Error: '+(d.error||'Unknown'));
+  });
+}
+
+function deleteGroup(id){
+  if(!confirm('Is group ko remove karo?')) return;
+  fetch('/api/groups/'+id,{method:'DELETE'}).then(function(){loadGroups();});
+}
+
+function toggleGroup(id){
+  fetch('/api/groups/'+id+'/toggle',{method:'POST'}).then(function(){loadGroups();});
+}
+
+function shareNow(){
+  if(!confirm('Abhi ek sharing cycle chalao?')) return;
+  fetch('/api/groups/share_now',{method:'POST'})
+  .then(function(r){return r.json();}).then(function(d){
+    alert(d.ok ? '✅ Share cycle complete!' : '❌ Error: '+(d.error||''));
+    loadGroups();
+  });
+}
+
+function loadGroups(){
+  fetch('/api/groups').then(function(r){return r.json();}).then(function(groups){
+    var g = G('groups-grid'); g.innerHTML='';
+    if(!groups.length){
+      g.innerHTML='<div style="color:#888;padding:20px">Koi group nahi — "+ Group Add Karo" se add karo</div>';
+    }
+    groups.forEach(function(gr){
+      var card = document.createElement('div');
+      card.className='card';
+      card.innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div>' +
+            '<div style="font-weight:600;font-size:15px">'+(gr.group_name||gr.group_id)+'</div>' +
+            '<div style="color:#888;font-size:12px;margin-top:2px">ID: '+gr.group_id+'</div>' +
+          '</div>' +
+          '<span class="badge '+(gr.active?'badge-ok':'badge-off')+'" style="cursor:pointer" onclick="toggleGroup('+gr.id+')">'+(gr.active?'Active':'Paused')+'</span>' +
+        '</div>' +
+        '<div style="margin-top:12px;display:flex;gap:8px">' +
+          '<button class="btn btn-secondary" style="font-size:12px;padding:4px 10px" onclick="toggleGroup('+gr.id+')">'+(gr.active?'Pause':'Resume')+'</button>' +
+          '<button class="btn" style="font-size:12px;padding:4px 10px;background:#c0392b;color:#fff" onclick="deleteGroup('+gr.id+')">Remove</button>' +
+        '</div>';
+      g.appendChild(card);
+    });
+  });
+
+  // History load karo
+  fetch('/api/groups/history').then(function(r){return r.json();}).then(function(rows){
+    var tb = G('share-history'); tb.innerHTML='';
+    rows.forEach(function(r){
+      var tr = document.createElement('tr');
+      var statusColor = r.status==='done' ? '#2ecc71' : '#e74c3c';
+      tr.innerHTML=
+        '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis">'+
+          '<a href="https://facebook.com/reel/'+r.fb_post_id+'" target="_blank" style="color:#58a6ff">'+r.fb_post_id+'</a>'+
+        '</td>'+
+        '<td>'+(r.group_name||r.group_id)+'</td>'+
+        '<td><span style="color:'+statusColor+'">'+r.status+'</span></td>'+
+        '<td style="color:#888;font-size:12px">'+(r.shared_at||'')+'</td>';
+      tb.appendChild(tr);
+    });
+    if(!rows.length) tb.innerHTML='<tr><td colspan="4" style="color:#888;text-align:center">Abhi koi share nahi hua</td></tr>';
+  });
+}
+</script>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">YT/TikTok/Photos → FB</div>
+    <div style="font-size:11px;color:#6b7280;padding:0 10px 8px" id="srv-time">ET: --</div>
+    <div class="nav-section">Main</div>
+    <button class="nav-btn active" data-page="dashboard" onclick="P('dashboard')">Dashboard</button>
+    <button class="nav-btn" data-page="accounts" onclick="P('accounts')">FB Accounts <span id="acc-nb"></span></button>
+    <button class="nav-btn" data-page="channels" onclick="P('channels')">Channels</button>
+    <button class="nav-btn" data-page="notifications" onclick="P('notifications')">Alerts <span id="nb"></span></button>
+    <div class="nav-section">Data</div>
+    <button class="nav-btn" data-page="analytics" onclick="P('analytics');loadAnalytics()">📊 Analytics</button>
+    <button class="nav-btn" data-page="uploads" onclick="P('uploads')">Uploads</button>
+    <button class="nav-btn" data-page="groups" onclick="P('groups')">📢 Groups</button>
+    <button class="nav-btn" data-page="logs" onclick="P('logs')">Live Logs</button>
+    <div class="nav-section">Setup</div>
+    <button class="nav-btn" data-page="settings" onclick="P('settings')">Settings</button>
+  </aside>
+
+  <main class="main">
+    <section id="pg-dashboard" class="page active">
+      <div class="topbar">
+        <div>
+          <div class="title">Dashboard</div>
+          <div class="sub" id="lu">Updated: ...</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAdd()">+ Add Channel</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-label">FB Accounts</div><div class="stat-value" id="s-acc">0</div></div>
+        <div class="stat"><div class="stat-label">FB Pages</div><div class="stat-value" id="s-pgs">0</div></div>
+        <div class="stat"><div class="stat-label">Channels</div><div class="stat-value" id="s-ch">0</div></div>
+        <div class="stat"><div class="stat-label">Running</div><div class="stat-value" id="s-ru">0</div></div>
+        <div class="stat"><div class="stat-label">Total Uploads</div><div class="stat-value" id="s-up">0</div></div>
+        <div class="stat"><div class="stat-label">Today</div><div class="stat-value" id="s-td">0</div></div>
+        <div class="stat"><div class="stat-label">Suspended</div><div class="stat-value" id="s-su">0</div></div>
+        <div class="stat"><div class="stat-label">Alerts</div><div class="stat-value" id="s-al">0</div></div>
+
+      </div>
+      <div id="ab"></div>
+      <div class="section-title">Channels</div>
+      <div class="grid" id="cg"></div>
+      <div class="section-title">Recent Uploads</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Video</th><th>Channel</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody id="rt"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="pg-accounts" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">Facebook Accounts</div>
+          <div class="sub">Attach multiple developer accounts or add pages manually</div>
+        </div>
+        <div class="row">
+          <button class="btn btn-secondary" onclick="connectFB()">+ Login Developer Account</button>
+          <button class="btn btn-primary" onclick="openManualAcc()">+ Add Account / Page</button>
+        </div>
+      </div>
+      <div class="notice">
+        Agar aap ke multiple Facebook accounts same Meta app me Developer/Test role par hain, to unhein one by one
+        <strong>+ Login Developer Account</strong> se connect karo. Har successful login ke baad us account ke pages
+        yahin show ho jayenge. Agar koi account popup me block ho, to us page ko <strong>+ Add Account / Page</strong>
+        se manual token ke sath save kar do.
+      </div>
+      <div class="notice" id="oauth-notice" style="display:none">
+        Pehle Settings me App ID aur App Secret save karo. Us ke baad Facebook popup khulega.
+      </div>
+      <div class="grid" id="acc-grid"></div>
+    </section>
+
+    <section id="pg-channels" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">Channels</div>
+          <div class="sub">Each channel maps one source to one Facebook page</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAdd()">+ Add Channel</button>
+      </div>
+      <div class="grid" id="cg2"></div>
+    </section>
+
+    <section id="pg-notifications" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">Alerts</div>
+          <div class="sub">Health and activity notifications</div>
+        </div>
+        <button class="btn btn-secondary" onclick="markAllRead()">Mark All Read</button>
+      </div>
+      <div id="nl"></div>
+    </section>
+
+    <section id="pg-analytics" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">📊 Analytics Dashboard</div>
+          <div class="sub">Upload history, success rate, platform breakdown, follower growth</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="loadAnalytics()">🔄 Refresh</button>
+      </div>
+
+      <!-- Success Rate Cards -->
+      <div class="stats" id="an-cards" style="margin-bottom:18px">
+        <div class="stat"><div class="stat-label">Total Uploads</div><div class="stat-value" id="an-total">—</div></div>
+        <div class="stat"><div class="stat-label">Success</div><div class="stat-value" style="color:#86efac" id="an-succ">—</div></div>
+        <div class="stat"><div class="stat-label">Errors</div><div class="stat-value" style="color:#fca5a5" id="an-err">—</div></div>
+        <div class="stat"><div class="stat-label">Success Rate</div><div class="stat-value" id="an-rate">—</div></div>
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card">
+          <div class="section-title" style="margin:0 0 12px">📅 Daily Uploads (Last 30 Days)</div>
+          <canvas id="chart-daily" height="180"></canvas>
+        </div>
+        <div class="card">
+          <div class="section-title" style="margin:0 0 12px">🌐 Platform Breakdown</div>
+          <canvas id="chart-platform" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Follower Growth -->
+      <div class="card" style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="section-title" style="margin:0">📈 Follower Growth</div>
+          <select class="select" id="an-ch-sel" style="width:200px" onchange="loadFollowerChart()">
+            <option value="">All Channels</option>
+          </select>
+        </div>
+        <canvas id="chart-followers" height="140"></canvas>
+      </div>
+
+      <!-- Per-channel Success Rate -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="section-title" style="margin:0 0 12px">🏆 Per-Channel Success Rate</div>
+        <div id="an-ch-table"></div>
+      </div>
+
+      <!-- Token Refresh Log -->
+      <div class="card">
+        <div class="section-title" style="margin:0 0 12px">🔑 Token Refresh Log</div>
+        <div class="table-wrap" style="border:none">
+          <table><thead><tr><th>Channel</th><th>Time</th><th>Status</th><th>Note</th></tr></thead>
+          <tbody id="an-tok-log"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <section id="pg-uploads" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">All Uploads</div>
+          <div class="sub">Recent upload history across channels</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Video</th><th>Channel</th><th>FB Post</th><th>Status</th><th>Time</th></tr></thead>
+          <tbody id="at"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="pg-logs" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">Live Logs</div>
+          <div class="sub">Realtime worker output</div>
+        </div>
+      </div>
+      <div class="logs" id="lb"><div class="log-line log-I">[sys] Connecting...</div></div>
+    </section>
+
+    <section id="pg-settings" class="page">
+      <div class="topbar">
+        <div>
+          <div class="title">Settings</div>
+          <div class="sub">Facebook app setup for developer OAuth</div>
+        </div>
+      </div>
+      <div class="form-card">
+        <div class="field">
+          <label class="label">App ID</label>
+          <input class="input" id="cfg-id" placeholder="123456789012345">
+        </div>
+        <div class="field">
+          <label class="label">App Secret</label>
+          <input class="input" type="password" id="cfg-sec" placeholder="App Secret">
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" onclick="saveConfig()">Save</button>
+          <span id="cfg-ok" class="small" style="display:none;color:#86efac">Saved</span>
+        </div>
+      </div>
+    </section>
+  <!-- ✅ GROUPS PAGE -->
+  <section id="pg-groups" class="page">
+    <div class="topbar">
+      <div>
+        <div class="title">📢 Facebook Groups</div>
+        <div class="sub">Page ki reels har ghante automatically in groups mein share hongi</div>
+      </div>
+      <div class="row">
+        <button class="btn btn-primary" onclick="openAddGroup()">+ Group Add Karo</button>
+        <button class="btn btn-secondary" onclick="shareNow()">▶ Abhi Share Karo</button>
+      </div>
+    </div>
+
+    <div class="notice" style="background:#0d2137;border:1px solid #1a5276;color:#aed6f1;margin-bottom:16px">
+      <strong>Kaise kaam karta hai:</strong> Upload hone ke baad reel ka link automatically group feed mein post hoga.
+      Har ghante mein 1 reel share hogi. Groups ke beech 30-60 sec ka gap hoga taake spam na lage.
+    </div>
+
+    <div class="section-title">Active Groups</div>
+    <div class="grid" id="groups-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+
+    <div class="section-title" style="margin-top:24px">Share History (Last 50)</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Post</th><th>Group</th><th>Status</th><th>Time</th></tr></thead>
+        <tbody id="share-history"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Add Group Modal -->
+  <div class="overlay" id="add-group-modal">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-title">Group Add Karo</div>
+      <div class="form-group">
+        <label>Group ID ya Group URL</label>
+        <input id="grp-id" placeholder="123456789 ya https://facebook.com/groups/123456789" style="width:100%">
+      </div>
+      <div class="form-group">
+        <label>Group Name (optional — sirf pehchaan ke liye)</label>
+        <input id="grp-name" placeholder="Animals of Pakistan" style="width:100%">
+      </div>
+      <div class="notice" style="font-size:12px;margin:8px 0">
+        ⚠️ Aap jo page token use kar rahe hain woh group ka member hona chahiye.
+        Group admin ho to best kaam karta hai.
+      </div>
+      <div class="row" style="margin-top:16px;gap:8px">
+        <button class="btn btn-primary" onclick="saveGroup()">Add Group</button>
+        <button class="btn btn-secondary" onclick="G('add-group-modal').classList.remove('open')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  </main>
+</div>
+
+<div class="overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-title">+ Add Channel</div>
+    <div class="field">
+      <label class="label">Channel Name</label>
+      <input class="input" id="f-name" placeholder="e.g. My Page Upload Bot">
+    </div>
+    <div class="cols-2">
+      <div class="field">
+        <label class="label">Daily Limit (per day max videos)</label>
+        <input class="input" type="number" id="f-limit" value="4" min="1" max="200">
+      </div>
+      <div class="field">
+        <label class="label">⏰ Upload Schedule</label>
+        <select class="select" id="f-interval">
+          <option value="0">Auto (Daily Limit mode)</option>
+          <option value="1">Har 1 ghante mein</option>
+          <option value="2">Har 2 ghante mein</option>
+          <option value="3">Har 3 ghante mein</option>
+          <option value="4">Har 4 ghante mein</option>
+          <option value="6">Har 6 ghante mein</option>
+          <option value="8">Har 8 ghante mein</option>
+          <option value="12">Har 12 ghante mein</option>
+          <option value="24">Din mein sirf 1 baar</option>
+        </select>
+        <div class="hint">Interval mode: har N ghante baad 1 video upload hogi.</div>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">✂️ Video Split Duration (seconds per part)</label>
+      <input class="input" type="number" id="f-split" value="0" min="0" max="3600" placeholder="0 = disabled">
+      <div class="hint">
+        Video ko equal parts mein split karo. <strong>0 = Split off</strong>. Misaal: 60s video + 10s/part = 6 parts, 12s/part = 5 parts.
+        Har part alag title ke sath upload hogi: "Title (Part 1/6)", "Title (Part 2/6)"...
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">▶ YouTube Channel URL (optional)</label>
+      <input class="input" id="f-yt" placeholder="https://www.youtube.com/@ChannelName">
+    </div>
+    <div class="field">
+      <label class="label">🎵 TikTok Profile URL (optional)</label>
+      <input class="input" id="f-tk" placeholder="https://www.tiktok.com/@username">
+    </div>
+    <div class="field">
+      <label class="label">📸 Instagram Profile URL (optional)</label>
+      <input class="input" id="f-ig" placeholder="https://www.instagram.com/username/">
+      <div class="hint">Reels fetch karega. Agar block ho to <code>instagram_cookies.txt</code> rakhein bot folder mein.</div>
+    </div>
+    <div class="field">
+      <label class="label">🖼 Photo Folder Path (optional — images → video)</label>
+      <input class="input" id="f-ph" placeholder="/home/user/photos  ya  C:\photos">
+      <div class="hint">JPG/PNG/WEBP images ko 15-sec video bana ke upload karega. FFmpeg zaroori hai.</div>
+    </div>
+    <div class="field">
+      <label class="label">☁ Google Drive Link (optional)</label>
+      <input class="input" id="f-gd" placeholder="https://drive.google.com/drive/folders/... ya file link">
+      <div class="hint">Google Drive folder ya single video file link — yt-dlp se download hoga.</div>
+    </div>
+    <div class="notice" id="alt-info" style="display:none">
+      ✅ Multiple sources set hain. Bot inhe rotate karta hai: aaj YouTube → kal TikTok → parson Instagram → phir Photos/GDrive/Local.
+    </div>
+    <div class="field">
+      <label class="label">Sort Order</label>
+      <select class="select" id="f-sort">
+        <option value="old_to_new">Old → New (Purani pehle)</option>
+        <option value="new_to_old">New → Old (Nai pehle)</option>
+        <option value="random">Random (Shuffle)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="label">Facebook Page</label>
+      <div class="picker" id="page-picker"><div class="empty">Loading pages...</div></div>
+      <div id="selected-page" class="small" style="display:none;margin-top:8px;color:#86efac"></div>
+    </div>
+    <div class="field">
+      <label class="label">Or Manual Page ID / Token</label>
+      <div class="cols-2">
+        <input class="input" id="f-pid" placeholder="Page ID">
+        <input class="input" id="f-tok" type="password" placeholder="Page Token">
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Caption Prefix (optional)</label>
+      <input class="input" id="f-cap" placeholder="Must watch">
+    </div>
+    <div class="field">
+      <label class="label">Extra Hashtags (optional)</label>
+      <input class="input" id="f-htag" placeholder="#viral #shorts">
+    </div>
+    <div class="field">
+      <label class="label">Proxy (optional)</label>
+      <input class="input" id="f-prx" placeholder="socks5://user:pass@host:port">
+      <div class="hint">Agar VPN use kar rahe ho to khali chhor sakte ho.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-primary" onclick="addChannel()">Add Channel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ NEW: Local Video Upload Modal -->
+<div class="overlay" id="local-upload-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">📁 Local Videos Upload</div>
+    <div class="field">
+      <label class="label">Channel: <span id="lu-channel-name" style="color:#7dd3fc"></span></label>
+    </div>
+    <div class="field">
+      <label class="label">Video Files Select karo (MP4, MOV, AVI, MKV, WEBM)</label>
+      <input type="file" id="lu-files" multiple accept="video/*,.mp4,.mov,.avi,.mkv,.webm,.m4v,.3gp,.flv"
+             style="display:block;margin-top:8px;color:#cbd5e1">
+      <div class="hint">Ek baar mein kai files select kar sakte ho.</div>
+    </div>
+    <div id="lu-progress" style="display:none;margin:10px 0;padding:10px;background:#0f172a;border-radius:8px;color:#86efac;font-size:13px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeLocalUpload()">Close</button>
+      <button class="btn btn-primary" onclick="doLocalUpload()">📤 Upload Videos</button>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#94a3b8">Pehle se Upload Videos:</div>
+      <div id="lu-file-list" style="max-height:200px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="logo-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">🖼 Logo / Watermark Settings</div>
+    <div class="field">
+      <label class="label">Logo Image</label>
+      <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/jpg,image/webp,image/gif" style="display:none" onchange="previewLogo(this)">
+      <div class="logo-preview-box" id="logo-preview-box" onclick="G('logo-file-input').click()" style="cursor:pointer">
+        <img id="logo-preview-img" src="" style="display:none">
+        <span id="logo-preview-label" style="color:#94a3b8;font-size:13px">📁 Click here to select logo image</span>
+        <span id="logo-set-badge" class="logo-set-badge" style="display:none">✓ Set</span>
+      </div>
+      <div class="hint" style="margin-top:6px">PNG/JPG/WEBP — transparent background (PNG) best lagta hai</div>
+    </div>
+    <div class="field">
+      <label class="label">Logo Position</label>
+      <select class="select" id="logo-pos-sel">
+        <option value="random">🎲 Random (har video alag corner)</option>
+        <option value="top_left">↖ Top Left</option>
+        <option value="top_right">↗ Top Right</option>
+        <option value="bottom_left">↙ Bottom Left</option>
+        <option value="bottom_right">↘ Bottom Right (Default)</option>
+        <option value="center">⊙ Center (faded)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="label">Logo Opacity (Faded Level)</label>
+      <div class="slider-row">
+        <input type="range" id="logo-opacity-sl" min="10" max="100" step="5" value="50"
+               oninput="G('logo-opacity-val').textContent=this.value+'%'">
+        <span class="slider-val" id="logo-opacity-val">50%</span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">Scale (% of Video Width)</label>
+      <div class="slider-row">
+        <input type="range" id="logo-scale-sl" min="3" max="40" step="1" value="15"
+               oninput="G('logo-scale-val').textContent=this.value+'%'">
+        <span class="slider-val" id="logo-scale-val">15%</span>
+      </div>
+    </div>
+    <div id="logo-remove-row" style="display:none;margin-bottom:12px">
+      <button class="btn btn-danger btn-sm" onclick="removeLogo()">🗑 Logo Hata Do</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="G('logo-modal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLogo()">💾 Save Logo</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="overlay" id="update-source-modal">
+  <div class="modal">
+    <div class="modal-title">🔗 Source Update Karo</div>
+    <div style="margin-bottom:12px;font-size:13px;color:#94a3b8">Naye URLs daalo — jo khaali chhodo woh remove ho jayega. Purani uploaded videos ki list reset ho jayegi taake naye source se dobara start ho.</div>
+    <label class="label">YouTube Channel/Playlist URL</label>
+    <input class="input" id="us-yt" placeholder="https://youtube.com/@channel" style="margin-bottom:10px">
+    <label class="label">TikTok URL</label>
+    <input class="input" id="us-tk" placeholder="https://tiktok.com/@user" style="margin-bottom:10px">
+    <label class="label">Instagram URL</label>
+    <input class="input" id="us-ig" placeholder="https://instagram.com/user" style="margin-bottom:10px">
+    <label class="label">Google Drive URL</label>
+    <input class="input" id="us-gd" placeholder="https://drive.google.com/..." style="margin-bottom:10px">
+    <label class="label">Photo Folder Path</label>
+    <input class="input" id="us-ph" placeholder="/path/to/photos" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="closeUpdateSource()">Cancel</button>
+      <button class="btn btn-warn" onclick="saveUpdateSource()">✅ Source Update Karo</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="manual-refresh-modal">
+  <div class="modal">
+    <div class="modal-title">🔑 Manual Account Token Update</div>
+    <div style="margin-bottom:12px;font-size:13px;color:#94a3b8">Naya page token enter karo — purana token replace ho jayega.</div>
+    <label class="label">Page</label>
+    <select class="input" id="mr-page-id" style="margin-bottom:12px"></select>
+    <label class="label">Naya Page Token</label>
+    <input class="input" id="mr-page-token" placeholder="EAAxxxxx..." style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="closeManualRefresh()">Cancel</button>
+      <button class="btn btn-success" onclick="saveManualRefresh()">✅ Token Update Karo</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="acc-modal">
+  <div class="modal">
+    <div class="modal-title">+ Facebook Account / Page</div>
+    <div class="field">
+      <label class="label">Account Name</label>
+      <input class="input" id="ma-name" placeholder="e.g. FB Account 1">
+    </div>
+    <div class="field">
+      <label class="label">Account Email / Label (optional)</label>
+      <input class="input" id="ma-email" placeholder="email or label">
+    </div>
+    <div class="field">
+      <label class="label">Page Name</label>
+      <input class="input" id="ma-pname" placeholder="e.g. My Viral Page">
+    </div>
+    <div class="cols-2">
+      <div class="field">
+        <label class="label">FB Page ID</label>
+        <input class="input" id="ma-pid" placeholder="123456789012345">
+      </div>
+      <div class="field">
+        <label class="label">Category (optional)</label>
+        <input class="input" id="ma-cat" placeholder="Manual">
+      </div>
+    </div>
+    <div class="field">
+      <label class="label">FB Page Token</label>
+      <input class="input" id="ma-ptok" type="password" placeholder="EAAxxxxx...">
+    </div>
+    <div class="hint">
+      Har page ko alag save kar sakte ho. Agar ek hi Facebook account ki multiple pages hain to same Account Name
+      ya Email/Label use karke aik aik page add karte jao.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeManualAcc()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveManualAcc()">Save Account</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var logSrc = null;
+var selPage = null;
+
+function P(p){
+  document.querySelectorAll('.page').forEach(function(el){ el.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(el){ el.classList.remove('active'); });
+  G('pg-' + p).classList.add('active');
+  var btn = document.querySelector('.nav-btn[data-page="' + p + '"]');
+  if(btn) btn.classList.add('active');
+  if(p === 'accounts') loadAccounts();
+  if(p === 'channels') loadChannels();
+  if(p === 'notifications') loadNotifs();
+  if(p === 'uploads') loadAllUploads();
+  if(p === 'groups') loadGroups();
+  if(p === 'logs') startLogs();
+  if(p === 'settings') loadConfig();
+}
+
+function loadStats(){
+  fetch('/api/stats').then(function(r){ return r.json(); }).then(function(d){
+    G('s-acc').textContent = d.connected_accounts || 0;
+    G('s-pgs').textContent = d.total_pages || 0;
+    G('s-ch').textContent = d.total_channels || 0;
+    G('s-ru').textContent = d.active_channels || 0;
+    G('s-up').textContent = d.total_uploads || 0;
+    G('s-td').textContent = d.today_uploads || 0;
+    G('s-su').textContent = d.suspended_pages || 0;
+    G('s-al').textContent = d.unread_notifications || 0;
+    G('lu').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    if(d.server_time_pkt) G('srv-time').textContent = '🕐 ET: ' + d.server_time_pkt;
+    G('nb').textContent = d.unread_notifications ? ' (' + d.unread_notifications + ')' : '';
+    G('acc-nb').textContent = d.connected_accounts ? ' (' + d.connected_accounts + ')' : '';
+  }).catch(function(){});
+}
+
+function loadAccounts(){
+  fetch('/api/accounts').then(function(r){ return r.json(); }).then(function(accs){
+    var g = G('acc-grid');
+    if(!accs.length){
+      g.innerHTML = '<div class="empty">Koi FB account connected nahi.<br>Developer account login karo ya page manually save karo.</div>';
+      return;
+    }
+    g.innerHTML = accs.map(function(a){
+      return '<div class="card">' +
+        '<div class="spread">' +
+          '<div class="row">' +
+            '<div class="avatar">' + esc((a.fb_name || '?').charAt(0).toUpperCase()) + '</div>' +
+            '<div>' +
+              '<div><strong>' + esc(a.fb_name || 'Facebook Account') + '</strong></div>' +
+              '<div class="muted small">' + esc(a.is_manual ? (a.fb_email || 'Manual token account') : (a.fb_email || a.fb_user_id || '')) + (a.is_manual ? ' | Manual token' : '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<span class="badge ' + (a.active ? 'badge-ok' : 'badge-off') + '">' + (a.active ? 'Active' : 'Inactive') + '</span>' +
+        '</div>' +
+        '<div class="small muted mb12" style="margin-top:10px">' + (a.page_count || 0) + ' pages found</div>' +
+        '<div class="pages">' +
+          (a.pages || []).map(function(pg){
+            return '<div class="page-item">' +
+              '<div>' +
+                '<div><strong>' + esc(pg.page_name || 'Page') + '</strong></div>' +
+                '<div class="tiny muted">' + numberFmt(pg.followers || 0) + ' followers</div>' +
+              '</div>' +
+              (pg.in_use ? '<span class="badge badge-ok">In use</span>' : '') +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '<div class="actions">' +
+          (a.is_manual
+            ? '<button class="btn btn-success btn-sm" onclick="openManualRefresh(' + a.id + ')">🔑 Token Update</button>'
+            : '<button class="btn btn-success btn-sm" onclick="refreshAcc(' + a.id + ')">Refresh</button>') +
+          '<button class="btn btn-danger btn-sm" onclick="discAcc(' + a.id + ')">Disconnect</button>' +
+          '<button class="btn btn-sm" style="background:#1a0a0a;color:#f87171;border:1px solid #7f1d1d" onclick="deleteAcc(' + a.id + ', \'' + esc(a.account_name || '') + '\')">🗑 Delete</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }).catch(function(){});
+}
+
+function connectFB(){
+  if(!confirm('Agar yeh account Meta app me Developer/Test role par active hai to OK dabao. Agar role pending hai ya popup block hota hai to Cancel karo aur page manually add karo.')){
+    openManualAcc();
+    return;
+  }
+  fetch('/api/config').then(function(r){ return r.json(); }).then(function(cfg){
+    if(!cfg.app_id || !cfg.has_secret){
+      G('oauth-notice').style.display = 'block';
+      return;
+    }
+    G('oauth-notice').style.display = 'none';
+    fetch('/api/oauth/url').then(function(r){ return r.json(); }).then(function(d){
+      if(d.error){ alert(d.error); return; }
+      var win = window.open(d.url, 'fb-login', 'width=620,height=760,left=200,top=100');
+      if(!win){
+        alert('Facebook login popup block ho gaya. Browser me popups allow karo aur dobara try karo.');
+        return;
+      }
+      var t = setInterval(function(){
+        if(win.closed){
+          clearInterval(t);
+          loadAccounts();
+          loadStats();
+          loadPagePicker();
+        }
+      }, 800);
+    });
+  });
+}
+
+function refreshAcc(id){
+  fetch('/api/accounts/' + id + '/refresh', {method:'POST'}).then(function(r){ return r.json(); }).then(function(d){
+    alert(d.message || 'Refreshed');
+    loadAccounts();
+    loadStats();
+    loadPagePicker();
+  });
+}
+
+function discAcc(id){
+  if(!confirm('Is account ko disconnect karna chahte ho?')) return;
+  fetch('/api/accounts/' + id + '/disconnect', {method:'POST'}).then(function(){
+    loadAccounts();
+    loadStats();
+    loadPagePicker();
+  });
+}
+
+function deleteAcc(id, name){
+  if(!confirm('⚠️ "' + (name || 'Account') + '" ko PERMANENTLY delete karna chahte ho?\n\nYeh account aur uske saare data database se hamesha ke liye hat jayenge. Yeh action undo nahi ho sakta!')) return;
+  fetch('/api/accounts/' + id + '/delete', {method:'POST'}).then(function(r){ return r.json(); }).then(function(d){
+    alert(d.message || 'Account delete ho gaya');
+    loadAccounts();
+    loadStats();
+    loadPagePicker();
+  }).catch(function(){
+    alert('Delete karne me error aya. Dobara try karo.');
+  });
+}
+
+function openManualAcc(){ G('acc-modal').classList.add('open'); }
+function closeManualAcc(){ G('acc-modal').classList.remove('open'); }
+G('acc-modal').addEventListener('click', function(e){ if(e.target === this) closeManualAcc(); });
+
+var _updateSourceChId = null;
+function openUpdateSource(chId){
+  _updateSourceChId = chId;
+  // Current values fetch karo
+  fetch('/api/channels').then(function(r){ return r.json(); }).then(function(chs){
+    var ch = chs.find(function(c){ return c.id === chId; });
+    if(ch){
+      G('us-yt').value = ch.source_url || '';
+      G('us-tk').value = ch.tiktok_url || '';
+      G('us-ig').value = ch.instagram_url || '';
+      G('us-gd').value = ch.google_drive_url || '';
+      G('us-ph').value = ch.photo_folder || '';
+    }
+  });
+  G('update-source-modal').classList.add('open');
+}
+function closeUpdateSource(){ G('update-source-modal').classList.remove('open'); }
+G('update-source-modal').addEventListener('click', function(e){ if(e.target === this) closeUpdateSource(); });
+function saveUpdateSource(){
+  var yt = G('us-yt').value.trim();
+  var tk = G('us-tk').value.trim();
+  var ig = G('us-ig').value.trim();
+  var gd = G('us-gd').value.trim();
+  var ph = G('us-ph').value.trim();
+  if(!yt && !tk && !ig && !gd && !ph){ alert('Kam az kam ek source URL daalo!'); return; }
+  var srcType = gd && !yt && !tk && !ig && !ph ? 'google_drive' :
+                (!yt && !tk && !ig && ph) ? 'photos' :
+                (!yt && !tk && ig) ? 'instagram' :
+                (!yt && !ig && tk) ? 'tiktok' : 'youtube';
+  fetch('/api/channels/' + _updateSourceChId, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      source_url: yt,
+      tiktok_url: tk,
+      instagram_url: ig,
+      google_drive_url: gd,
+      photo_folder: ph,
+      source_type: srcType
+    })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if(d.error){ alert('Error: ' + d.error); return; }
+    // Purani uploads reset karo taake naye source se start ho
+    fetch('/api/channels/' + _updateSourceChId + '/reset_uploads', {method:'POST'})
+      .catch(function(){});
+    alert('✅ Source update ho gaya! Channel ab naye source se videos upload karega.');
+    closeUpdateSource();
+    loadChannels();
+  });
+}
+function openManualRefresh(accId){
+  _manualRefreshAccId = accId;
+  var sel = G('mr-page-id');
+  sel.innerHTML = '<option>Loading...</option>';
+  G('mr-page-token').value = '';
+  G('manual-refresh-modal').classList.add('open');
+  fetch('/api/accounts').then(function(r){ return r.json(); }).then(function(accounts){
+    var acc = accounts.find(function(a){ return a.id === accId; });
+    sel.innerHTML = '';
+    var pages = (acc && acc.pages) || [];
+    if(!pages.length){
+      var opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Koi page nahi mila';
+      sel.appendChild(opt);
+    } else {
+      pages.forEach(function(pg){
+        var opt = document.createElement('option');
+        opt.value = pg.page_id;
+        opt.textContent = (pg.page_name || pg.page_id);
+        sel.appendChild(opt);
+      });
+    }
+  }).catch(function(){
+    sel.innerHTML = '<option>Error loading pages</option>';
+  });
+}
+function closeManualRefresh(){ G('manual-refresh-modal').classList.remove('open'); }
+G('manual-refresh-modal').addEventListener('click', function(e){ if(e.target === this) closeManualRefresh(); });
+function saveManualRefresh(){
+  var pageId = G('mr-page-id').value;
+  var token  = G('mr-page-token').value.trim();
+  if(!token){ alert('Naya token enter karo!'); return; }
+  fetch('/api/accounts/' + _manualRefreshAccId + '/refresh_manual_token', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({page_id: pageId, page_token: token})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    alert(d.message || d.error || 'Done');
+    closeManualRefresh();
+    loadAccounts();
+  });
+}
+
+function saveManualAcc(){
+  var data = {
+    account_name: G('ma-name').value.trim() || G('ma-pname').value.trim(),
+    account_email: G('ma-email').value.trim(),
+    page_name: G('ma-pname').value.trim() || G('ma-name').value.trim(),
+    page_id: G('ma-pid').value.trim(),
+    page_token: G('ma-ptok').value.trim(),
+    category: G('ma-cat').value.trim() || 'Manual'
+  };
+  fetch('/api/accounts/manual', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if(res.error){ alert('Error: ' + res.error); return; }
+    ['ma-name','ma-email','ma-pname','ma-pid','ma-ptok','ma-cat'].forEach(function(id){ G(id).value = ''; });
+    closeManualAcc();
+    loadAccounts();
+    loadStats();
+    loadPagePicker();
+  });
+}
+
+function loadPagePicker(){
+  selPage = null;
+  G('selected-page').style.display = 'none';
+  G('selected-page').textContent = '';
+  G('f-pid').value = '';
+  G('f-tok').value = '';
+  var pk = G('page-picker');
+  fetch('/api/accounts').then(function(r){ return r.json(); }).then(function(accs){
+    if(!accs.length){
+      pk.innerHTML = '<div class="empty">Koi page available nahi. Pehle FB account connect karo ya page manually add karo.</div>';
+      return;
+    }
+    var html = '';
+    accs.forEach(function(a){
+      if(!a.active || !a.pages || !a.pages.length) return;
+      html += '<div class="picker-head">' + esc(a.fb_name || 'Facebook Account') + '</div>';
+      a.pages.forEach(function(pg){
+        html += '<div class="picker-item page-opt" data-page-id="' + escAttr(pg.page_id || '') + '" data-page-name="' + escAttr(pg.page_name || '') + '">' +
+          '<div><strong>' + esc(pg.page_name || 'Page') + '</strong><div class="tiny muted">' + numberFmt(pg.followers || 0) + ' followers</div></div>' +
+          '<span class="badge badge-off">' + esc(a.is_manual ? 'Manual' : 'OAuth') + '</span>' +
+        '</div>';
+      });
+    });
+    pk.innerHTML = html || '<div class="empty">Koi page nahi mila.</div>';
+    pk.querySelectorAll('.page-opt').forEach(function(el){
+      el.addEventListener('click', function(){ selPg(this); });
+    });
+  });
+}
+
+function selPg(el){
+  document.querySelectorAll('#page-picker .page-opt').forEach(function(e){ e.classList.remove('sel'); });
+  el.classList.add('sel');
+  var pid = el.dataset.pageId || '';
+  var pname = el.dataset.pageName || '';
+  selPage = {page_id: pid, page_name: pname};
+  G('f-pid').value = pid;
+  G('f-tok').value = '';
+  G('selected-page').textContent = 'Selected Page: ' + pname;
+  G('selected-page').style.display = 'block';
+  var nm = G('f-name');
+  if(!nm.value.trim() || nm.value === nm.dataset.autoPageName) nm.value = pname;
+  nm.dataset.autoPageName = pname;
+}
+
+function loadChannels(){
+  fetch('/api/channels').then(function(r){ return r.json(); }).then(function(chs){
+    renderChs('cg', chs);
+    renderChs('cg2', chs);
+    renderAlerts(chs);
+  }).catch(function(){});
+}
+
+function renderChs(id, chs){
+  var el = G(id);
+  if(!chs.length){
+    el.innerHTML = '<div class="empty">Koi channel nahi. Add Channel se shuru karo.</div>';
+    return;
+  }
+  el.innerHTML = chs.map(function(ch){
+    var cls = ch.page_suspended ? 'sus' : (ch.growth_paused ? 'pau' : (ch.status === 'running' ? 'run' : ''));
+    var hasYt = !!(ch.source_url || '').trim();
+    var hasTk = !!(ch.tiktok_url || '').trim();
+    var hasIg = !!(ch.instagram_url || '').trim();
+    var hasPh = !!(ch.photo_folder || '').trim();
+    var hasGd = !!(ch.google_drive_url || '').trim();
+    var hasLc = (ch.local_file_count || 0) > 0;
+    var srcCount = [hasYt,hasTk,hasIg,hasPh,hasGd,hasLc].filter(Boolean).length;
+    var srcLabel = srcCount > 1 ? (
+      [hasYt?'YT':'',hasTk?'TikTok':'',hasIg?'IG':'',hasPh?'Photos':'',hasGd?'GDrive':'',hasLc?'Local':''].filter(Boolean).join('+')
+    ) : (hasGd ? '☁ Google Drive' : hasLc ? '📁 Local Videos' : hasIg ? '📸 Instagram' : hasPh ? '📸 Photos→Video' : hasTk ? '🎵 TikTok' : '▶ YouTube');
+    var pct = Math.min(100, Math.round(((ch.today_uploads || 0) / (ch.daily_limit || 4)) * 100));
+    var mainBadge = ch.page_suspended ? 'badge-bad">Suspended' :
+      (ch.growth_paused ? 'badge-warn">Paused' :
+      (ch.status === 'running' ? 'badge-ok">Running' : 'badge-off">Stopped'));
+    var sortLabel = ch.sort_order === 'new_to_old' ? 'Nai→Puraani' : (ch.sort_order === 'random' ? 'Random' : 'Puraani→Nai');
+    return '<div class="card ' + cls + '">' +
+      '<div class="spread">' +
+        '<div>' +
+          '<div><strong>' + esc(ch.name || 'Channel') + '</strong></div>' +
+          '<div class="small muted">' + esc(ch.source_url || ch.tiktok_url || ch.instagram_url || ch.photo_folder || '') + '</div>' +
+        '</div>' +
+        '<span class="badge ' + mainBadge + '</span>' +
+      '</div>' +
+      '<div class="small muted mb12" style="margin-top:10px">' +
+        (srcLabel) +
+        ' | ' + sortLabel +
+        ' | Followers: ' + numberFmt(ch.current_followers || 0) +
+      '</div>' +
+      '<div class="small" style="margin-bottom:8px">Today: ' + (ch.today_uploads || 0) + '/' + (ch.daily_limit || 4) + '</div>' +
+      '<div class="progress"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="row" style="margin-top:12px">' +
+        '<input class="input" style="max-width:100px" type="number" min="1" max="200" value="' + (ch.daily_limit || 4) + '" id="lim-' + ch.id + '">' +
+        '<button class="btn btn-secondary btn-sm" onclick="saveLimit(' + ch.id + ')">Save Limit</button>' +
+      '</div>' +
+      (ch.upload_interval_hours > 0 ? '<div class="small" style="margin-bottom:6px;color:#fbbf24">⏰ Schedule: har ' + ch.upload_interval_hours + ' ghante mein 1 video</div>' : '') +
+      (ch.split_duration > 0 ? '<div class="small" style="margin-bottom:6px;color:#a78bfa">✂️ Split: har ' + ch.split_duration + 's pe part | <input type="number" min="0" max="3600" value="' + ch.split_duration + '" id="splt-' + ch.id + '" style="width:70px;padding:2px 4px;border:1px solid #4b5563;background:#1f2937;color:#f3f4f6;border-radius:4px"> <button class="btn btn-secondary btn-sm" onclick="saveSplit(' + ch.id + ')">Set</button> <button class="btn btn-secondary btn-sm" onclick="saveSplitOff(' + ch.id + ')">Off</button></div>' :
+        '<div class="small" style="margin-bottom:6px;color:#6b7280">✂️ Split: Off | <input type="number" min="0" max="3600" value="0" id="splt-' + ch.id + '" style="width:70px;padding:2px 4px;border:1px solid #4b5563;background:#1f2937;color:#f3f4f6;border-radius:4px" placeholder="sec"> <button class="btn btn-secondary btn-sm" onclick="saveSplit(' + ch.id + ')">Enable Split</button></div>') +
+      '<div class="actions">' +
+        (ch.page_suspended ? '<button class="btn btn-secondary btn-sm" disabled>Suspended</button>' :
+         (ch.growth_paused ? '<button class="btn btn-warn btn-sm" onclick="forceStart(' + ch.id + ')">Override</button>' :
+          (ch.status === 'running' ? '<button class="btn btn-danger btn-sm" onclick="toggleCh(' + ch.id + ',this)">Stop</button>' : '<button class="btn btn-success btn-sm" onclick="toggleCh(' + ch.id + ',this)">Start</button>'))) +
+        '<button class="btn btn-secondary btn-sm" onclick="openLocalUpload(' + ch.id + ',\'' + esc(ch.name).replace(/'/g,"\\'")+  '\')">📁 Local' + (ch.local_file_count > 0 ? ' ('+ch.local_file_count+')' : '') + '</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="openLogoModal(' + ch.id + ')">🖼 Logo</button>' +
+        '<button class="btn btn-warn btn-sm" onclick="openUpdateSource(' + ch.id + ')">🔗 Source Update</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="delCh(' + ch.id + ')">Delete</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderAlerts(chs){
+  var issues = [];
+  chs.forEach(function(ch){
+    if(ch.page_suspended) issues.push({t:'Page Suspended: ' + ch.name, m:'Uploads blocked.'});
+    if(ch.recommendations_off) issues.push({t:'Recommendations Off: ' + ch.name, m:'Reach may be lower.'});
+    if(ch.growth_paused) issues.push({t:'Growth Slow: ' + ch.name, m:'Override required to start.'});
+  });
+  var el = G('ab');
+  if(!issues.length){ el.innerHTML = ''; return; }
+  el.innerHTML = issues.map(function(i){
+    return '<div class="alert-box"><div><strong>' + esc(i.t) + '</strong><div class="small muted">' + esc(i.m) + '</div></div></div>';
+  }).join('');
+}
+
+function saveLimit(id){
+  fetch('/api/channels/' + id, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({daily_limit: parseInt(G('lim-' + id).value, 10) || 4})
+  }).then(function(){ loadChannels(); loadStats(); });
+}
+
+function saveSplit(id){
+  var val = parseInt(G('splt-' + id).value, 10) || 0;
+  if(val < 0){ val = 0; }
+  fetch('/api/channels/' + id, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({split_duration: val})
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if(res.error){ alert('Error: ' + res.error); return; }
+    loadChannels();
+  });
+}
+
+function saveSplitOff(id){
+  fetch('/api/channels/' + id, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({split_duration: 0})
+  }).then(function(){ loadChannels(); });
+}
+
+function toggleCh(id, btn){
+  btn.disabled = true;
+  fetch('/api/channels/' + id + '/toggle', {method:'POST'}).then(function(r){ return r.json(); }).then(function(res){
+    if(res.reason) alert(res.reason);
+    loadChannels();
+    loadStats();
+  }).finally(function(){ btn.disabled = false; });
+}
+
+function forceStart(id){
+  if(!confirm('Growth warning bypass karke start karna chahte ho?')) return;
+  fetch('/api/channels/' + id + '/force_start', {method:'POST'}).then(function(){ loadChannels(); loadStats(); });
+}
+
+// ── Logo Modal ────────────────────────────────────────────────────────────────
+var _logoChannelId = null;
+var _logoPendingFile = null;
+
+function openLogoModal(id) {
+  _logoChannelId = id;
+  _logoPendingFile = null;
+  // Load current channel data
+  fetch('/api/channels').then(function(r){ return r.json(); }).then(function(chs) {
+    var ch = chs.find(function(c){ return c.id === id; }) || {};
+    var lp = ch.logo_path || '';
+    var pos = ch.logo_position || 'bottom_right';
+    var op = Math.round((ch.logo_opacity || 0.5) * 100);
+    var sc = Math.round((ch.logo_scale || 0.15) * 100);
+    G('logo-pos-sel').value = pos;
+    G('logo-opacity-sl').value = op; G('logo-opacity-val').textContent = op + '%';
+    G('logo-scale-sl').value = sc;   G('logo-scale-val').textContent = sc + '%';
+    if (lp) {
+      G('logo-preview-label').textContent = '📄 ' + lp.split('/').pop().split('\\').pop();
+      G('logo-set-badge').style.display = 'inline-block';
+      G('logo-preview-img').style.display = 'none';
+      G('logo-remove-row').style.display = 'block';
+    } else {
+      G('logo-preview-label').textContent = '📁 Click here to select logo image';
+      G('logo-set-badge').style.display = 'none';
+      G('logo-preview-img').style.display = 'none';
+      G('logo-remove-row').style.display = 'none';
+    }
+    G('logo-file-input').value = '';
+    G('logo-modal').classList.add('open');
+  });
+}
+
+function previewLogo(input) {
+  var file = input.files[0];
+  if (!file) return;
+  _logoPendingFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = G('logo-preview-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    G('logo-preview-label').textContent = '📄 ' + file.name;
+    G('logo-set-badge').style.display = 'none';
+    G('logo-remove-row').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLogo() {
+  if (!confirm('Is channel ka logo hata dena chahte ho?')) return;
+  _logoPendingFile = null;
+  fetch('/api/channels/' + _logoChannelId, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({logo_path: ''})
+  }).then(function(){ 
+    G('logo-modal').classList.remove('open');
+    loadChannels();
+  });
+}
+
+function saveLogo() {
+  var pos = G('logo-pos-sel').value;
+  var opacity = parseInt(G('logo-opacity-sl').value, 10) / 100;
+  var scale   = parseInt(G('logo-scale-sl').value,   10) / 100;
+
+  function patchChannel(logoPath) {
+    var data = {logo_position: pos, logo_opacity: opacity, logo_scale: scale};
+    if (logoPath !== null) data.logo_path = logoPath;
+    fetch('/api/channels/' + _logoChannelId, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    }).then(function(r){ return r.json(); }).then(function(res){
+      if (res.error) { alert('Error: ' + res.error); return; }
+      G('logo-modal').classList.remove('open');
+      loadChannels();
+    });
+  }
+
+  if (_logoPendingFile) {
+    var fd = new FormData();
+    fd.append('logo', _logoPendingFile);
+    fetch('/api/config/logo/upload', {method:'POST', body: fd})
+      .then(function(r){ return r.json(); })
+      .then(function(res) {
+        if (res.error) { alert('Upload error: ' + res.error); return; }
+        patchChannel(res.path);
+      });
+  } else {
+    patchChannel(null);  // Only update position/opacity/scale
+  }
+}
+
+G('logo-modal').addEventListener('click', function(e){ if(e.target === this) this.classList.remove('open'); });
+
+// ─── ✅ NEW: Local Video Upload Modal ─────────────────────────────────────────
+var _luChannelId = null;
+
+function openLocalUpload(cid, chName) {
+  _luChannelId = cid;
+  G('lu-channel-name').textContent = chName;
+  G('lu-progress').style.display = 'none';
+  G('lu-progress').textContent = '';
+  G('lu-files').value = '';
+  G('local-upload-modal').classList.add('open');
+  loadLocalFileList(cid);
+}
+
+function closeLocalUpload() {
+  G('local-upload-modal').classList.remove('open');
+  _luChannelId = null;
+  loadChannels();
+}
+G('local-upload-modal').addEventListener('click', function(e){ if(e.target === this) closeLocalUpload(); });
+
+function loadLocalFileList(cid) {
+  var el = G('lu-file-list');
+  el.innerHTML = '<div class="muted" style="font-size:13px">Loading...</div>';
+  fetch('/api/channels/' + cid + '/local_files')
+    .then(function(r){ return r.json(); })
+    .then(function(files){
+      if(!files.length){
+        el.innerHTML = '<div class="muted" style="font-size:13px">Koi local video nahi hai abhi.</div>';
+        return;
+      }
+      el.innerHTML = files.map(function(f){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;' +
+               'padding:6px 8px;margin-bottom:4px;background:#0f172a;border-radius:6px;font-size:12px">' +
+               '<span style="color:#e2e8f0">📹 ' + esc(f.name) + '</span>' +
+               '<span style="color:#64748b;margin:0 12px">' + f.size_mb + ' MB</span>' +
+               '<button onclick="deleteLocalFile(' + cid + ',\'' + esc(f.name) + '\')" ' +
+               'style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">Delete</button>' +
+               '</div>';
+      }).join('');
+    });
+}
+
+function doLocalUpload() {
+  if(!_luChannelId){ alert('Channel select nahi hua.'); return; }
+  var files = G('lu-files').files;
+  if(!files.length){ alert('Pehle video files select karo.'); return; }
+  var fd = new FormData();
+  for(var i=0;i<files.length;i++) fd.append('videos', files[i]);
+  var prog = G('lu-progress');
+  prog.style.display = 'block';
+  prog.textContent = '⏳ Uploading ' + files.length + ' file(s)...';
+  fetch('/api/channels/' + _luChannelId + '/local_files', {method:'POST', body:fd})
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if(res.error){ prog.style.color='#f87171'; prog.textContent = '❌ ' + res.error; return; }
+      prog.style.color = '#86efac';
+      prog.textContent = '✅ ' + res.message;
+      G('lu-files').value = '';
+      loadLocalFileList(_luChannelId);
+    })
+    .catch(function(e){ prog.style.color='#f87171'; prog.textContent='❌ Error: ' + e; });
+}
+
+function deleteLocalFile(cid, fname) {
+  if(!confirm('File delete karna chahte ho: ' + fname + '?')) return;
+  fetch('/api/channels/' + cid + '/local_files/' + encodeURIComponent(fname), {method:'DELETE'})
+    .then(function(r){ return r.json(); })
+    .then(function(){ loadLocalFileList(cid); });
+}
+
+
+function delCh(id){
+  if(!confirm('Channel delete karna chahte ho?')) return;
+  fetch('/api/channels/' + id, {method:'DELETE'}).then(function(){ loadChannels(); loadStats(); });
+}
+
+function openAdd(){
+  G('add-modal').classList.add('open');
+  loadPagePicker();
+}
+function closeAdd(){ G('add-modal').classList.remove('open'); }
+G('add-modal').addEventListener('click', function(e){ if(e.target === this) closeAdd(); });
+
+['f-yt','f-tk','f-ig','f-ph','f-gd'].forEach(function(id){
+  G(id).addEventListener('input', function(){
+    var yt = G('f-yt').value.trim();
+    var tk = G('f-tk').value.trim();
+    var ig = G('f-ig').value.trim();
+    var ph = G('f-ph').value.trim();
+    var gd = G('f-gd').value.trim();
+    var count = [yt,tk,ig,ph,gd].filter(Boolean).length;
+    G('alt-info').style.display = (count > 1) ? 'block' : 'none';
+  });
+});
+
+function addChannel(){
+  var pid = selPage ? selPage.page_id : G('f-pid').value.trim();
+  var ptok = selPage ? '' : G('f-tok').value.trim();
+  var yt = G('f-yt').value.trim();
+  var tk = G('f-tk').value.trim();
+  var ig = G('f-ig').value.trim();
+  var ph = G('f-ph').value.trim();
+  var gd = G('f-gd').value.trim();
+  if(!yt && !tk && !ig && !ph && !gd){ alert('YouTube, TikTok, Instagram, Photo Folder ya Google Drive link daalna zaroori hai.'); return; }
+  if(!G('f-name').value.trim()){ alert('Channel name daalo.'); return; }
+  if(!pid || (!selPage && !ptok)){
+    alert(selPage && !pid ? 'Facebook page select karo.' : 'Facebook page select karo ya manually daalo.');
+    return;
+  }
+  var srcType = gd && !yt && !tk && !ig && !ph ? 'google_drive' :
+                (!yt && !tk && !ig && ph) ? 'photos' :
+                (!yt && !ig && tk) ? 'tiktok' :
+                (!yt && !tk && ig) ? 'instagram' : 'youtube';
+  var data = {
+    name: G('f-name').value.trim(),
+    source_type: srcType,
+    source_url: yt || '',
+    tiktok_url: tk || '',
+    instagram_url: ig || '',
+    photo_folder: ph || '',
+    google_drive_url: gd || '',
+    fb_page_id: pid,
+    fb_token: ptok,
+    caption_prefix: G('f-cap').value.trim(),
+    hashtags: G('f-htag').value.trim(),
+    daily_limit: parseInt(G('f-limit').value, 10) || 4,
+    upload_interval_hours: parseInt(G('f-interval').value, 10) || 0,
+    split_duration: parseInt(G('f-split').value, 10) || 0,
+    proxy: G('f-prx').value.trim(),
+    sort_order: G('f-sort').value
+  };
+  fetch('/api/channels', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).then(function(r){ return r.json(); }).then(function(res){
+    if(res.error){ alert('Error: ' + res.error); return; }
+    closeAdd();
+    ['f-name','f-yt','f-tk','f-ig','f-ph','f-gd','f-pid','f-tok','f-cap','f-htag','f-prx'].forEach(function(id){ G(id).value = ''; });
+    G('f-limit').value = '4';
+    G('f-interval').value = '0';
+    G('f-split').value = '0';
+    G('f-sort').value = 'old_to_new';
+    G('alt-info').style.display = 'none';
+    G('selected-page').style.display = 'none';
+    G('selected-page').textContent = '';
+    G('f-name').dataset.autoPageName = '';
+    selPage = null;
+    loadChannels();
+    loadStats();
+  });
+}
+
+function loadRecent(){
+  fetch('/api/uploads?limit=8').then(function(r){ return r.json(); }).then(function(rows){
+    var tb = G('rt');
+    if(!rows.length){
+      tb.innerHTML = '<tr><td colspan="4" class="muted">Koi upload nahi.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(function(r){
+      return '<tr>' +
+        '<td>' + esc(r.title || '') + '</td>' +
+        '<td>' + esc(r.channel_name || '') + '</td>' +
+        '<td>' + esc(r.status || '') + '</td>' +
+        '<td>' + timeAgo(r.uploaded_at) + '</td>' +
+      '</tr>';
+    }).join('');
+  });
+}
+
+function loadAllUploads(){
+  fetch('/api/uploads?limit=100').then(function(r){ return r.json(); }).then(function(rows){
+    var tb = G('at');
+    if(!rows.length){
+      tb.innerHTML = '<tr><td colspan="5" class="muted">Koi upload nahi.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(function(r){
+      return '<tr>' +
+        '<td>' + esc(r.title || '') + '</td>' +
+        '<td>' + esc(r.channel_name || '') + '</td>' +
+        '<td>' + esc(r.fb_post_id || '-') + '</td>' +
+        '<td>' + esc(r.status || '') + '</td>' +
+        '<td>' + timeAgo(r.uploaded_at) + '</td>' +
+      '</tr>';
+    }).join('');
+  });
+}
+
+function loadNotifs(){
+  fetch('/api/notifications').then(function(r){ return r.json(); }).then(function(ns){
+    var el = G('nl');
+    if(!ns.length){
+      el.innerHTML = '<div class="empty">Koi alert nahi.</div>';
+      return;
+    }
+    el.innerHTML = ns.map(function(n){
+      return '<div class="card" style="margin-bottom:10px">' +
+        '<div class="spread">' +
+          '<div><strong>' + esc(n.title || '') + '</strong><div class="small muted">' + esc(n.message || '') + '</div></div>' +
+          (n.read ? '<span class="badge badge-off">Read</span>' : '<button class="btn btn-secondary btn-sm" onclick="mRead(' + n.id + ')">Read</button>') +
+        '</div>' +
+        '<div class="tiny muted" style="margin-top:8px">' + esc(n.channel_name || '') + ' | ' + timeAgo(n.created_at) + '</div>' +
+      '</div>';
+    }).join('');
+  });
+}
+
+function mRead(id){
+  fetch('/api/notifications/' + id + '/read', {method:'POST'}).then(function(){ loadStats(); loadNotifs(); });
+}
+
+function markAllRead(){
+  fetch('/api/notifications/read_all', {method:'POST'}).then(function(){ loadStats(); loadNotifs(); });
+}
+
+function startLogs(){
+  if(logSrc) logSrc.close();
+  logSrc = new EventSource('/api/logs/stream');
+  logSrc.onmessage = function(e){
+    var d = JSON.parse(e.data);
+    var box = G('lb');
+    var line = document.createElement('div');
+    var code = (d.level || 'I').charAt(0).toUpperCase();
+    line.className = 'log-line log-' + code;
+    line.textContent = '[' + (d.ts || '').substring(11,19) + '] ' + (d.message || '');
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+    while(box.children.length > 300) box.removeChild(box.firstChild);
+  };
+}
+
+function loadConfig(){
+  fetch('/api/config').then(function(r){ return r.json(); }).then(function(cfg){
+    G('cfg-id').value = cfg.app_id || '';
+    if(cfg.has_secret) G('cfg-sec').placeholder = '(saved)';
+  });
+}
+
+function saveConfig(){
+  var data = {app_id: G('cfg-id').value.trim()};
+  var secret = G('cfg-sec').value.trim();
+  if(secret) data.app_secret = secret;
+  fetch('/api/config', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  }).then(function(){
+    G('cfg-ok').style.display = 'inline';
+    setTimeout(function(){ G('cfg-ok').style.display = 'none'; }, 1500);
+  });
+}
+
+function G(id){ return document.getElementById(id); }
+function esc(s){ return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function numberFmt(n){ return Number(n || 0).toLocaleString(); }
+function timeAgo(iso){
+  if(!iso) return '-';
+  // Server stores UTC, logs stream sends PKT already
+  // For uploads table: server stores UTC, we add 'Z' to parse as UTC then convert
+  var s = String(iso).replace(' ', 'T');
+  if(!s.endsWith('Z') && !s.includes('+')) s += 'Z';  // treat as UTC
+  var t = new Date(s);
+  if(isNaN(t.getTime())) return iso;
+  // Show PKT time string for absolute
+  var pkt = new Date(t.getTime() + 5*3600*1000);
+  var abs = pkt.toISOString().replace('T',' ').substring(0,16) + ' ET';
+  var seconds = Math.floor((Date.now() - t.getTime()) / 1000);
+  if(seconds < 5) return 'abhi abhi (' + abs + ')';
+  if(seconds < 60) return seconds + ' sec pehle (' + abs + ')';
+  var minutes = Math.floor(seconds / 60);
+  if(minutes < 60) return minutes + ' min pehle (' + abs + ')';
+  var hours = Math.floor(minutes / 60);
+  if(hours < 24) return hours + ' ghante pehle (' + abs + ')';
+  var days = Math.floor(hours / 24);
+  return days + ' din pehle (' + abs + ')';
+}
+
+window.addEventListener('message', function(e){
+  if(e.origin !== window.location.origin) return;
+  if(e.data && e.data.type === 'fb_connected'){
+    loadAccounts();
+    loadStats();
+    loadPagePicker();
+  }
+});
+
+// ─── Analytics ─────────────────────────────────────────────────────────────
+var _charts = {};
+function _destroyChart(id){ if(_charts[id]){ _charts[id].destroy(); delete _charts[id]; } }
+
+function loadAnalytics(){
+  // Success rate cards
+  fetch('/api/analytics/success_rate').then(function(r){ return r.json(); }).then(function(d){
+    var o=d.overall;
+    G('an-total').textContent = o.total;
+    G('an-succ').textContent  = o.success;
+    G('an-err').textContent   = o.error;
+    G('an-rate').textContent  = o.rate + '%';
+    // Per-channel table
+    var html='<table style="width:100%"><thead><tr><th>Channel</th><th>Uploads</th><th>Success</th><th>Rate</th><th>Bar</th></tr></thead><tbody>';
+    d.channels.forEach(function(c){
+      var pct=c.rate;
+      var col=pct>=80?'#86efac':pct>=50?'#fcd34d':'#fca5a5';
+      html+='<tr><td>'+esc(c.name||'#'+c.id)+'</td><td>'+c.total+'</td><td>'+c.success+'</td><td style="color:'+col+'">'+pct+'%</td><td><div class="progress" style="width:120px"><span style="width:'+pct+'%;background:'+col+'"></span></div></td></tr>';
+    });
+    html+='</tbody></table>';
+    G('an-ch-table').innerHTML=html;
+  });
+  // Daily uploads chart
+  fetch('/api/analytics/uploads_per_day').then(function(r){ return r.json(); }).then(function(rows){
+    _destroyChart('daily');
+    var labels=rows.map(function(r){ return r.day; });
+    var succ=rows.map(function(r){ return r.success; });
+    var fail=rows.map(function(r){ return r.total-r.success; });
+    _charts['daily']=new Chart(G('chart-daily'),{type:'bar',data:{labels:labels,datasets:[
+      {label:'Success',data:succ,backgroundColor:'rgba(134,239,172,0.7)',borderRadius:4},
+      {label:'Failed',data:fail,backgroundColor:'rgba(252,165,165,0.7)',borderRadius:4}
+    ]},options:{responsive:true,scales:{x:{stacked:true,ticks:{color:'#94a3b8',maxTicksLimit:10}},y:{stacked:true,ticks:{color:'#94a3b8'},grid:{color:'#1f2533'}}},plugins:{legend:{labels:{color:'#cbd5e1'}},tooltip:{mode:'index'}}}});
+  });
+  // Platform breakdown doughnut
+  fetch('/api/analytics/platform_breakdown').then(function(r){ return r.json(); }).then(function(rows){
+    _destroyChart('platform');
+    var labels=rows.map(function(r){ return r.platform.charAt(0).toUpperCase()+r.platform.slice(1); });
+    var data=rows.map(function(r){ return r.success; });
+    var colors=['#8b5cf6','#f472b6','#fb923c','#34d399'];
+    _charts['platform']=new Chart(G('chart-platform'),{type:'doughnut',data:{labels:labels,datasets:[{data:data,backgroundColor:colors,borderWidth:2,borderColor:'#151923'}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#cbd5e1',padding:14}}}}});
+  });
+  // Populate channel selector for follower growth
+  fetch('/api/channels').then(function(r){ return r.json(); }).then(function(chs){
+    var sel=G('an-ch-sel');
+    sel.innerHTML='<option value="">All Channels</option>';
+    chs.forEach(function(c){ sel.innerHTML+='<option value="'+c.id+'">'+esc(c.name)+'</option>'; });
+  });
+  loadFollowerChart();
+  loadTokenLog();
+}
+
+function loadFollowerChart(){
+  var cid=G('an-ch-sel').value;
+  var url='/api/analytics/follower_growth'+(cid?'?channel_id='+cid:'');
+  fetch(url).then(function(r){ return r.json(); }).then(function(rows){
+    _destroyChart('followers');
+    var labels=rows.map(function(r){ return r.day; });
+    var data=rows.map(function(r){ return r.followers; });
+    _charts['followers']=new Chart(G('chart-followers'),{type:'line',data:{labels:labels,datasets:[{label:'Followers',data:data,borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,0.12)',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'#8b5cf6'}]},options:{responsive:true,scales:{x:{ticks:{color:'#94a3b8',maxTicksLimit:10}},y:{ticks:{color:'#94a3b8'},grid:{color:'#1f2533'}}},plugins:{legend:{labels:{color:'#cbd5e1'}}}}});
+  });
+}
+
+function loadTokenLog(){
+  fetch('/api/analytics/token_refresh_log').then(function(r){ return r.json(); }).then(function(rows){
+    var tb=G('an-tok-log');
+    if(!rows.length){ tb.innerHTML='<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:16px">Koi refresh nahi hua abhi tak.</td></tr>'; return; }
+    tb.innerHTML=rows.map(function(r){
+      var sc=r.status==='success'?'badge-ok':'badge-bad';
+      return '<tr><td>'+esc(r.channel_name||'#'+r.channel_id)+'</td><td class="muted small">'+esc(r.refreshed_at||'')+'</td><td><span class="badge '+sc+'">'+esc(r.status)+'</span></td><td class="small muted">'+esc(r.note||'')+'</td></tr>';
+    }).join('');
+  });
+}
+
+loadStats();
+loadAccounts();
+loadChannels();
+loadRecent();
+setInterval(function(){
+  loadStats();
+  loadChannels();
+  loadRecent();
+}, 10000);
+</script>
+</body>
+</html>

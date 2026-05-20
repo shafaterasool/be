@@ -1,0 +1,26 @@
+# ── Core Framework ────────────────────────────────────────────────────────────
+flask>=3.0.0
+requests>=2.31.0
+yt-dlp>=2024.1.0
+browser-cookie3
+# ── Image Processing ──────────────────────────────────────────────────────────
+Pillow>=10.0.0
+
+# ── Database ──────────────────────────────────────────────────────────────────
+# SQLite is built into Python — no install needed.
+# PostgreSQL (optional): set DATABASE_URL env var to activate.
+psycopg2-binary>=2.9.9
+
+# ── Instagram Support ─────────────────────────────────────────────────────────
+# ✅ v11: Instaloader — session-based login (no browser cookies needed)
+instaloader>=4.10.3
+# instagrapi kept for any direct API usage
+instagrapi>=2.0.0
+
+# ── Google Drive Support ──────────────────────────────────────────────────────
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=1.0.0
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dotenv>=1.0.0
