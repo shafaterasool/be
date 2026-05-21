@@ -334,11 +334,17 @@ def get_uploaded_ids(cid, pid=""):
     """
     v8: Worker ek baar sab known IDs load karo — har video pe query nahi.
     In-memory set return karta hai → O(1) lookup instead of DB query per video.
-    ✅ FIX: 'skipped' aur 'error' bhi include karo — warna failed videos
-    har cycle mein dobara try hote rehte hain (infinite retry loop).
+
+    ✅ FIX Bug#1 Bug#15: Sirf PERMANENT done IDs:
+      - success  → uploaded ho gayi
+      - split    → parts mein upload ho gayi
+      - skipped  → age-restricted (permanent block)
+    ❌ 'error' HATAYA — upload fail = retry karni chahiye (6 hr cooldown se)
+    ❌ 'retry'  HATAYA — download fail = cooldown ke baad dobara try hoti hai
     """
     rows = get_db().execute(
-        "SELECT video_id FROM uploads WHERE channel_id=? AND status IN ('success','split','skipped','error')", (cid,)
+        "SELECT video_id FROM uploads WHERE channel_id=? AND status IN ('success','split','skipped')",
+        (cid,)
     ).fetchall()
     ids = set(r[0] for r in rows)
     if pid:
@@ -350,15 +356,21 @@ def get_uploaded_ids(cid, pid=""):
 
 def get_retry_cooldown_ids(cid, minutes=RETRY_COOLDOWN_MIN):
     """
-    Retryable download fails ko thodi der ke liye cooldown pe rakho.
-    Permanent skip nahi honge, lekin har cycle mein foran dobara bhi try nahi honge.
+    ✅ FIX Bug#10 Bug#18: Dono fail types ko cooldown pe rakho:
+      - status=retry (download fail)  → 30 min cooldown
+      - status=error (upload fail)    → 6 ghante cooldown
     """
     rows = get_db().execute(
         "SELECT video_id FROM uploads WHERE channel_id=? AND status='retry' "
         "AND uploaded_at >= datetime('now', ?)",
         (cid, f"-{int(minutes)} minutes")
     ).fetchall()
-    return set(r[0] for r in rows)
+    rows2 = get_db().execute(
+        "SELECT video_id FROM uploads WHERE channel_id=? AND status='error' "
+        "AND uploaded_at >= datetime('now', '-360 minutes')",
+        (cid,)
+    ).fetchall()
+    return set(r[0] for r in rows) | set(r[0] for r in rows2)
 
 def mark_uploaded(cid, vid, title, fb_page_id, fb_post_id, status="success", platform="", fb_feed_post_id=""):
     try:
@@ -445,8 +457,26 @@ def detect_proxy():
         except: pass
     return ""
 
-def _popt(proxy_str):
-    p = (proxy_str or "").strip() or detect_proxy()
+def _pick_proxy(proxy_str, cid=0):
+    """
+    ✅ FIX Bug#23: Comma-separated proxies support — round-robin rotation.
+    Example: socks5://p1:8080,socks5://p2:8080,socks5://p3:8080
+    Har 5 dakeeqe mein alag proxy use hoti hai.
+    """
+    raw = (proxy_str or "").strip()
+    if not raw:
+        return detect_proxy()
+    proxies = [px.strip() for px in raw.split(",") if px.strip()]
+    if len(proxies) == 1:
+        return proxies[0]
+    # Round-robin: har 5 min + channel_id offset
+    idx = (int(time.time()) // 300 + cid) % len(proxies)
+    chosen = proxies[idx]
+    log.debug(f"[ProxyRotate] ch{cid} → proxy #{idx+1}/{len(proxies)}: {chosen[:40]}")
+    return chosen
+
+def _popt(proxy_str, cid=0):
+    p = _pick_proxy(proxy_str, cid) or detect_proxy()
     if not p: return {},{}
     if not any(p.lower().startswith(s) for s in ("http://","https://","socks4://","socks5://")):
         if "." in p or "local" in p or p.startswith("127."): p = "http://"+p
@@ -721,7 +751,7 @@ def split_video(video_path, seconds_per_part, out_dir=None, cid=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 # v8 INCREMENTAL FETCH — PRO LEVEL (unchanged from v8, working perfectly)
 # ═══════════════════════════════════════════════════════════════════════════════
-EARLY_STOP_COUNT = 8
+EARLY_STOP_COUNT = 30   # ✅ FIX Bug#3: 8 se 30 — 8 pe bahut jaldi ruk jata tha
 
 def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
     known  = known_ids or set()
@@ -742,7 +772,7 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
     # tv → koi PO Token policy nahi = free mein kaam karta hai ✅
     opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["tv", "web", "mweb"],
+            "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7: web/mweb PO Token maangte hain
         }
     }
     cookie_file = get_youtube_cookiefile()
@@ -1116,19 +1146,18 @@ def _ffile(path):
     raise FileNotFoundError(path)
 
 def download_youtube(url, proxy=""):
-    # ✅ FIX v2: YouTube PO Token bypass — cookies ke bina bhi kaam karta hai
-    # Problem: "android"+"web" clients 2025 mein YouTube PO Token maangne lage
-    #          PoToken nahi = 0.1MB fake file milti hai (real video nahi)
-    # Solution: "ios" + "tv_embedded" clients PO Token nahi maangaate
-    #   ios         → real iPhone app request — YouTube full video deta hai
-    #   tv_embedded → Smart TV client — PO token requirement nahi
-    #   mweb        → Mobile browser — fallback
+    # ✅ FIX Bug#6 Bug#7: Format + Client update
+    # Format: bv*+ba = best video + best audio (adaptive streams support)
+    #         18/22 OLD progressive formats thay — Shorts/adaptive streams fail hoti theen
+    # Clients: tv + ios + android — teen reliable clients, PO Token nahi maangaate
+    #   tv      → Smart TV client — 2026 mein sabse reliable
+    #   ios     → iPhone app — real video milti hai
+    #   android → Android app — extra fallback
     extra = {
-        "format": "18/22/best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+        "format": "bv*+ba/b[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "extractor_args": {
             "youtube": {
-                "player_client": ["tv", "web", "mweb"],
-                # ✅ FIX v3: tv client — PO Token nahi maangta, 2026 mein reliable
+                "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7
             },
         },
     }
@@ -1600,7 +1629,29 @@ def _do_download(v, stype, proxy, lpath, lpos, lop, lsc, cid=None):
                 else:   log.warning(warn)
                 time.sleep(delay)
             else:
-                err = f"❌ [{plat_label}] Saare {DL_RETRY_ATTEMPTS} attempts fail. Last error: {e}"
+                # ✅ FIX Bug#24: Specific error reason log karo
+                err_s = str(e).lower()
+                if "po token" in err_s or "potoken" in err_s:
+                    reason = "PO Token required — player client change karein"
+                elif "403" in str(e) or "forbidden" in err_s:
+                    reason = "HTTP 403 Forbidden — geo-block ya rate limit"
+                elif "private" in err_s:
+                    reason = "Video private hai"
+                elif "unavailable" in err_s or "removed" in err_s:
+                    reason = "Video unavailable/deleted"
+                elif "copyright" in err_s or "takedown" in err_s:
+                    reason = "Copyright takedown"
+                elif "captcha" in err_s:
+                    reason = "CAPTCHA detected — bot detection"
+                elif "sign in" in err_s or "login" in err_s:
+                    reason = "Login required — cookies enable karein"
+                elif "fragment" in err_s or "incomplete" in err_s:
+                    reason = "Incomplete download — network/fragmentation issue"
+                elif "0.1" in str(e) or "fake" in err_s:
+                    reason = "Fake/empty file mili — PO Token ya client issue"
+                else:
+                    reason = str(e)[:150]
+                err = f"❌ [{plat_label}] Saare {DL_RETRY_ATTEMPTS} attempts fail. Sabab: {reason}"
                 if cid: db_log(cid, "ERROR", err)
                 else:   log.error(err)
 
@@ -1895,7 +1946,26 @@ def _run_worker(cid):
                              "local":"Local Videos","google_drive":"Google Drive"}.get(stype,stype)
 
                 if not new_vs:
-                    db_log(cid,"INFO","Tamam sources khaali")
+                    # ✅ FIX Bug#22: Real reason diagnose karo — content khatam ya errors
+                    error_count = 0
+                    cooldown_count = 0
+                    try:
+                        e_row = get_db().execute(
+                            "SELECT COUNT(*) FROM uploads WHERE channel_id=? AND status='error'", (cid,)
+                        ).fetchone()
+                        error_count = e_row[0] if e_row else 0
+                        r_row = get_db().execute(
+                            "SELECT COUNT(*) FROM uploads WHERE channel_id=? AND status='retry'", (cid,)
+                        ).fetchone()
+                        cooldown_count = r_row[0] if r_row else 0
+                    except Exception: pass
+
+                    if error_count > 0 or cooldown_count > 0:
+                        db_log(cid,"INFO",
+                            f"Videos mil sakti hain lekin cooldown/error mein hain — "                            f"errors: {error_count}, retry-cooldown: {cooldown_count}. "                            f"6 ghante baad retry hogi.")
+                        se.wait(3600); continue
+                    else:
+                        db_log(cid,"INFO","Tamam sources khaali")
                     if len(all_sources) > 1:
                         add_notification(cid,"CHANNEL_EXHAUSTED","Saari videos ho gayi!",
                                          f"'{ch['name']}' ka content khatam. Naya source add karein.","warning")
