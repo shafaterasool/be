@@ -19,9 +19,17 @@ from contextlib import contextmanager
 
 log = logging.getLogger("db")
 
+_DB_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+def _resolve_db_path(raw_path: str) -> str:
+    db_path = (raw_path or "data.db").strip() or "data.db"
+    if os.path.isabs(db_path):
+        return db_path
+    return os.path.join(_DB_BASE_DIR, db_path)
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_POSTGRES  = bool(DATABASE_URL)
-_DB_PATH      = os.environ.get("SQLITE_PATH", "data.db")
+_DB_PATH      = _resolve_db_path(os.environ.get("SQLITE_PATH", "data.db"))
 
 # ─── Universal Row ─────────────────────────────────────────────────────────────
 class UniversalRow:
