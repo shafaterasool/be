@@ -629,11 +629,14 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
         "socket_timeout": 30,
         **yo
     }
-    # ✅ FIX v2: PO Token bypass — ios/tv_embedded clients cookies ke bina kaam karte hain
+    # ✅ FIX v3: tv client PO Token nahi maangta — 2026 mein sabse reliable
+    # ios → PO Token required=True ho gaya (fail)
+    # tv_embedded → exist nahi karta new yt-dlp mein (invalid)
+    # mweb → PO Token required=True ho gaya (fail)
+    # tv → koi PO Token policy nahi = free mein kaam karta hai ✅
     opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["ios", "tv_embedded", "mweb"],
-            "player_skip": ["webpage"],
+            "player_client": ["tv", "web", "mweb"],
         }
     }
     _cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
@@ -1018,8 +1021,8 @@ def download_youtube(url, proxy=""):
         "format": "18/22/best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "extractor_args": {
             "youtube": {
-                "player_client": ["ios", "tv_embedded", "mweb"],
-                "player_skip": ["webpage"],   # webpage skip = faster + bot detection kam
+                "player_client": ["tv", "web", "mweb"],
+                # ✅ FIX v3: tv client — PO Token nahi maangta, 2026 mein reliable
             },
         },
     }
@@ -1030,9 +1033,25 @@ def download_youtube(url, proxy=""):
     return _dlbase(url, os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"), extra, proxy)
 
 def download_tiktok(url, proxy=""):
-    return _dlbase(url,os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
-                   {"format":"mp4[vcodec^=h264][acodec^=mp4a]/mp4[vcodec^=avc]/bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-                    "extractor_args":{"tiktok":{"api_hostname":"api16-normal-c-useast1a.tiktokv.com","app_version":"36.1.3"}}},proxy)
+    # ✅ FIX v3: TikTok format fix
+    # - h265/bytevc1 bhi accept karo (TikTok zyada tar h265 deta hai 2026 mein)
+    # - app_version 35.1.3 = yt-dlp default ke saath match
+    # - format preference: no-watermark h264 → h265 → best
+    return _dlbase(url, os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
+                   {
+                       "format": (
+                           "bestvideo[vcodec^=h264][ext=mp4]+bestaudio[ext=m4a]"
+                           "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+                           "/mp4[vcodec^=h264]/mp4/best[ext=mp4]/best"
+                       ),
+                       "extractor_args": {
+                           "tiktok": {
+                               "api_hostname": "api16-normal-c-useast1a.tiktokv.com",
+                               "app_version": "35.1.3",
+                           }
+                       },
+                       "merge_output_format": "mp4",
+                   }, proxy)
 
 def download_instagram(url, proxy=""):
     # ✅ v11: Instaloader session cookies use karo
