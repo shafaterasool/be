@@ -12,9 +12,11 @@ import http.cookiejar
 
 log = logging.getLogger("ig_session")
 
-SESSION_DIR       = "./ig_sessions"
-COOKIES_FILE      = "./ig_session_cookies.txt"
-SESSION_META_FILE = "./ig_session_meta.json"
+# ✅ FIX: Absolute paths — Windows pe CWD change se file-not-found bug fix
+_IG_BOT_DIR       = os.path.dirname(os.path.abspath(__file__))
+SESSION_DIR       = os.path.join(_IG_BOT_DIR, "ig_sessions")
+COOKIES_FILE      = os.path.join(_IG_BOT_DIR, "ig_session_cookies.txt")
+SESSION_META_FILE = os.path.join(_IG_BOT_DIR, "ig_session_meta.json")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -291,8 +293,10 @@ def get_cookies_file():
     if os.path.exists(COOKIES_FILE):
         return COOKIES_FILE
 
-    if os.path.exists("instagram_cookies.txt"):
-        return "instagram_cookies.txt"
+    # ✅ FIX: Absolute fallback path
+    _alt = os.path.join(_IG_BOT_DIR, "instagram_cookies.txt")
+    if os.path.exists(_alt):
+        return _alt
 
     return ""
 
