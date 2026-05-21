@@ -23,10 +23,16 @@ _BOT_DIR            = os.path.dirname(os.path.abspath(__file__))
 DOWNLOADS_DIR       = os.path.join(_BOT_DIR, "downloads")
 os.makedirs(DOWNLOADS_DIR, exist_ok=True)
 
+def _resolve_db_path(raw_path):
+    db_path = (raw_path or "data.db").strip() or "data.db"
+    if os.path.isabs(db_path):
+        return db_path
+    return os.path.join(_BOT_DIR, db_path)
+
 SHORT_MAX_DURATION  = 200
 LOCAL_UPLOADS_DIR   = os.path.join(_BOT_DIR, "local_uploads")  # ✅ FIX: absolute path
 PKT                 = timezone(timedelta(hours=-4))  # ✅ USA Eastern Time (ET/EDT, UTC-4 daylight saving)
-_DB_PATH            = "data.db"
+_DB_PATH            = _resolve_db_path(os.environ.get("SQLITE_PATH", "data.db"))
 MIN_FREE_MB         = 500          # ✅ #3 Disk: itni free space chahiye (MB)
 DL_RETRY_ATTEMPTS   = 3            # ✅ #1 Retry: kitni baar try karein
 DL_RETRY_BASE_DELAY = 2            # ✅ #1 Retry: base delay seconds (doubles each try)
@@ -35,6 +41,7 @@ INTER_UPLOAD_MAX    = 10           # ✅ #4 Delay: max seconds between uploads
 DL_QUEUE_TIMEOUT    = 300          # ✅ #5 Queue: 300s (was 600s)
 YT_COOKIES_KEY      = "youtube_cookies_enabled"
 RETRY_COOLDOWN_MIN  = 30           # transient download fail ke baad kitni der skip rahe
+FFPROBE_BIN         = shutil.which("ffprobe")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ✅ 24/7 MODE — Upload kabhi bhi, user ki marzi se
@@ -548,9 +555,12 @@ def probe_media_file(path):
     }
     if not path or not os.path.exists(path):
         return info
+    if not FFPROBE_BIN:
+        info["missing_tool"] = True
+        return info
     try:
         probe = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
+            [FFPROBE_BIN, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
             capture_output=True, timeout=30
         )
         if probe.returncode != 0 or not probe.stdout:
@@ -578,11 +588,16 @@ def validate_download_file(path, expected_duration=0):
     Source listing verify hone ka matlab yeh nahi ke actual downloaded file bhi playable ho.
     Ab size ki wajah se block nahi karte; sirf itna dekhte hain ke file real video hai.
     """
-    size_mb = round(os.path.getsize(path) / (1024 * 1024), 1)
+    size_bytes = os.path.getsize(path)
+    size_mb = round(size_bytes / (1024 * 1024), 1)
+    if size_bytes <= 0:
+        return False, "0.0MB empty file"
     if size_mb >= 0.5:
         return True, f"{size_mb}MB"
 
     meta = probe_media_file(path)
+    if meta.get("missing_tool"):
+        return True, f"{size_mb}MB (ffprobe missing — size-only allow)"
     if not meta["ok"]:
         return False, f"{size_mb}MB and ffprobe validate fail"
 
