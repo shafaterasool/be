@@ -471,7 +471,7 @@ def reencode_video(vp, out_dir=None):
     cmd = [
         "ffmpeg", "-y",
         "-i", vp,
-        "-vf", f"crop=iw-{crop_px}:ih-{crop_px}:{crop_px//2}:{crop_px//2},scale=iw:ih",  # micro crop
+        "-vf", f"crop=iw-{crop_px}:ih-{crop_px}:{crop_px//2}:{crop_px//2},scale=trunc(iw/2)*2:trunc(ih/2)*2",  # micro crop + even dims (FB requires)
         "-c:v", "libx264",
         "-preset", "fast",           # ultrafast se fast — thoda better quality
         "-crf", str(crf),            # random compression
@@ -987,7 +987,7 @@ def _dlbase(url, tmpl, extra_opts, proxy):
         "quiet": True, "no_warnings": True, "merge_output_format": "mp4",
         "socket_timeout": 60, "retries": 3,
         "concurrent_fragment_downloads": 4,    # ✅ FIX: 16→4 — log spam kam, stable download
-        "age_limit": 21,                        # ✅ FIX: cookies ke bina age-restricted bypass
+        "age_limit": 99,                        # ✅ FIX v3: sabhi videos allow — cookies age bypass karti hain
         "outtmpl": tmpl
     }, **extra_opts, **yo}
     with yt_dlp.YoutubeDL(opts) as ydl:
@@ -1118,7 +1118,10 @@ def upload_to_facebook(pid, tok, fpath, title, caption, proxy=""):
                 timeout=30,
                 proxies=prx,
             )
-            init_r.raise_for_status()
+            if not init_r.ok:
+                try: fb_err = init_r.json().get("error", {})
+                except: fb_err = init_r.text[:200]
+                raise ValueError(f"[Reels] Init 400 — FB error: {fb_err}")
             init_resp   = init_r.json()
             upload_url  = init_resp.get("upload_url") or ""
             video_id    = init_resp.get("video_id")   or ""
@@ -1186,6 +1189,12 @@ def upload_to_facebook(pid, tok, fpath, title, caption, proxy=""):
                         log.warning(f"[FB] HTTP 500 Server Error — {w500}s baad retry (attempt {_500_attempts})")
                         time.sleep(w500)
                         continue
+                    raise
+                # ✅ FIX v3: 400 pe bhi detail log karo
+                if e.response.status_code == 400:
+                    try: fb_detail = e.response.json()
+                    except: fb_detail = e.response.text[:300]
+                    log.warning(f"[FB] HTTP 400 detail: {fb_detail}")
                     raise
                 try: ec = e.response.json().get("error", {}).get("code", 0)
                 except: ec = 0
@@ -1478,12 +1487,8 @@ def _do_download(v, stype, proxy, lpath, lpos, lop, lsc, cid=None):
         except Exception as e:
             last_err = e
             err_str = str(e).lower()
-            # ✅ FIX: Age-restricted / Sign-in errors pe FORAN stop — retry waste hai
-            if "sign in" in err_str or "age" in err_str or "inappropriate" in err_str:
-                msg = f"🔞 [{plat_label}] Age-restricted video — skip kar raha hoon (retry nahi): {v.get('title','?')}"
-                if cid: db_log(cid, "WARN", msg)
-                else:   log.warning(msg)
-                raise RuntimeError(f"AGE_RESTRICTED: {e}")
+            # ✅ FIX v4: Age restriction CHECK HATAYA — sabhi videos download karo
+            # age_limit=99 + cookies se sab kuch handle hota hai
             if attempt < DL_RETRY_ATTEMPTS:
                 delay = DL_RETRY_BASE_DELAY * (2 ** (attempt - 1))   # 2s, 4s, 8s
                 warn  = f"⚠️ [{plat_label}] Download attempt {attempt}/{DL_RETRY_ATTEMPTS} fail — {delay}s baad retry. Error: {e}"
