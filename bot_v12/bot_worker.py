@@ -753,7 +753,24 @@ def split_video(video_path, seconds_per_part, out_dir=None, cid=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 EARLY_STOP_COUNT = 30   # ✅ FIX Bug#3: 8 se 30 — 8 pe bahut jaldi ruk jata tha
 
-def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
+def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy="", sort_order="old_to_new"):
+    """
+    ✅ FIX Sort-Mode Bug:
+    YouTube playlist hamesha NEWEST FIRST return karta hai.
+
+    sort_order ke hisaab se EARLY_STOP ka behavior alag hai:
+
+    old_to_new  → YouTube order match karta hai (newest first, purani end mein)
+                  Agar 30 consecutive known IDs aayein = purana content scan ho gaya → STOP theek hai
+                  LEKIN: minimum 300 entries scan karo taka fresh content zaroor check ho
+
+    new_to_old  → User newest upload karta hai pehle.
+                  Naye videos YouTube list ke SHURU mein hote hain (jo already known hain).
+                  EARLY_STOP bilkul disable — poori list scan karo
+                  Warna: 30 known (jo pehle upload hue) = galat "content khatam"
+
+    random      → Koi bhi video kisi bhi jagah ho sakta hai → EARLY_STOP disable
+    """
     known  = known_ids or set()
     base   = url.rstrip("/")
     yo, _  = _popt(proxy)
@@ -765,14 +782,9 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
         "socket_timeout": 30,
         **yo
     }
-    # ✅ FIX v3: tv client PO Token nahi maangta — 2026 mein sabse reliable
-    # ios → PO Token required=True ho gaya (fail)
-    # tv_embedded → exist nahi karta new yt-dlp mein (invalid)
-    # mweb → PO Token required=True ho gaya (fail)
-    # tv → koi PO Token policy nahi = free mein kaam karta hai ✅
     opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7: web/mweb PO Token maangte hain
+            "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7
         }
     }
     cookie_file = get_youtube_cookiefile()
@@ -788,16 +800,28 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
                 if entries: break
         except Exception as e: log.warning(f"YT fetch {u}: {e}")
 
+    # ✅ FIX: sort_order ke hisaab se early stop strategy
+    # new_to_old / random → disable karo (9999 = effectively off)
+    # old_to_new → enable karo LEKIN minimum 300 entries scan karo pehle
+    if sort_order in ("new_to_old", "random"):
+        effective_stop = 9999   # disabled — poori list scan karni hai
+        min_scan_before_stop = 0
+    else:
+        effective_stop = EARLY_STOP_COUNT   # old_to_new = normal early stop
+        min_scan_before_stop = 300          # kam se kam 300 entries scan karo
+
     out               = []
     consecutive_known = 0
+    total_scanned     = 0
     for e in entries:
         d = e.get("duration") or 0
         if d > SHORT_MAX_DURATION: continue
+        total_scanned += 1
         vid_id = e["id"]
         if vid_id in known:
             consecutive_known += 1
-            if consecutive_known >= EARLY_STOP_COUNT:
-                log.debug(f"YT early stop: {EARLY_STOP_COUNT} consecutive known IDs")
+            if consecutive_known >= effective_stop and total_scanned >= min_scan_before_stop:
+                log.debug(f"YT early stop: {consecutive_known} consecutive known (sort={sort_order}, scanned={total_scanned})")
                 break
             continue
         consecutive_known = 0
@@ -812,7 +836,8 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
     out.reverse()
     return out
 
-def fetch_tiktok_videos(url, known_ids=None, max_new=5000, proxy=""):
+def fetch_tiktok_videos(url, known_ids=None, max_new=5000, proxy="", sort_order="old_to_new"):
+    """✅ FIX: sort_order aware early stop — same logic as fetch_youtube_shorts"""
     known = known_ids or set()
     yo, _ = _popt(proxy)
     opts  = {
@@ -829,15 +854,25 @@ def fetch_tiktok_videos(url, known_ids=None, max_new=5000, proxy=""):
         if info: entries = [e for e in (info.get("entries") or []) if e and e.get("id")]
     except Exception as e: log.warning(f"TikTok fetch: {e}")
 
+    if sort_order in ("new_to_old", "random"):
+        effective_stop = 9999
+        min_scan_before_stop = 0
+    else:
+        effective_stop = EARLY_STOP_COUNT
+        min_scan_before_stop = 300
+
     out               = []
     consecutive_known = 0
+    total_scanned     = 0
     for e in entries:
         d = e.get("duration") or 0
         if d > SHORT_MAX_DURATION: continue
+        total_scanned += 1
         vid_id = e["id"]
         if vid_id in known:
             consecutive_known += 1
-            if consecutive_known >= EARLY_STOP_COUNT: break
+            if consecutive_known >= effective_stop and total_scanned >= min_scan_before_stop:
+                break
             continue
         consecutive_known = 0
         out.append({
@@ -1917,11 +1952,13 @@ def _run_worker(cid):
                     elif _stype == "google_drive":
                         _videos = fetch_google_drive_videos(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy)
                     elif _stype == "tiktok":
-                        _videos = fetch_tiktok_videos(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy)
+                        # ✅ FIX: sort_order pass karo — early stop strategy adjust ho
+                        _videos = fetch_tiktok_videos(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy, sort_order=sort)
                     elif _stype == "instagram":
                         _videos = fetch_instagram_reels(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy)
                     else:
-                        _videos = fetch_youtube_shorts(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy)
+                        # ✅ FIX: sort_order pass karo — early stop strategy adjust ho
+                        _videos = fetch_youtube_shorts(_surl, known_ids=known_ids, max_new=rem*3, proxy=proxy, sort_order=sort)
 
                     if _videos:
                         _videos = apply_sort(_videos, sort)
