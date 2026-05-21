@@ -33,6 +33,8 @@ DL_RETRY_BASE_DELAY = 2            # ✅ #1 Retry: base delay seconds (doubles e
 INTER_UPLOAD_MIN    = 10           # ✅ #4 Delay: min seconds between uploads
 INTER_UPLOAD_MAX    = 10           # ✅ #4 Delay: max seconds between uploads
 DL_QUEUE_TIMEOUT    = 300          # ✅ #5 Queue: 300s (was 600s)
+YT_COOKIES_KEY      = "youtube_cookies_enabled"
+RETRY_COOLDOWN_MIN  = 30           # transient download fail ke baad kitni der skip rahe
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ✅ 24/7 MODE — Upload kabhi bhi, user ki marzi se
@@ -229,6 +231,26 @@ def set_config(key, value):
         get_db().commit()
     except Exception as e: log.error(f"set_config: {e}")
 
+def get_config_bool(key, default=False):
+    raw = str(get_config(key, "1" if default else "0")).strip().lower()
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off", ""):
+        return False
+    return default
+
+def youtube_cookies_enabled():
+    # Default OFF: user chahe to Settings se enable kar sakta hai.
+    return get_config_bool(YT_COOKIES_KEY, default=False)
+
+def get_youtube_cookiefile():
+    if not youtube_cookies_enabled():
+        return ""
+    cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
+    if os.path.exists(cookie_file) and os.path.getsize(cookie_file) > 100:
+        return cookie_file
+    return ""
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ✅ #2 LOG FLUSH — DEDICATED BACKGROUND THREAD
 #
@@ -318,6 +340,18 @@ def get_uploaded_ids(cid, pid=""):
         ).fetchall()
         ids.update(r[0] for r in rows2)
     return ids
+
+def get_retry_cooldown_ids(cid, minutes=RETRY_COOLDOWN_MIN):
+    """
+    Retryable download fails ko thodi der ke liye cooldown pe rakho.
+    Permanent skip nahi honge, lekin har cycle mein foran dobara bhi try nahi honge.
+    """
+    rows = get_db().execute(
+        "SELECT video_id FROM uploads WHERE channel_id=? AND status='retry' "
+        "AND uploaded_at >= datetime('now', ?)",
+        (cid, f"-{int(minutes)} minutes")
+    ).fetchall()
+    return set(r[0] for r in rows)
 
 def mark_uploaded(cid, vid, title, fb_page_id, fb_post_id, status="success", platform="", fb_feed_post_id=""):
     try:
@@ -500,6 +534,63 @@ def reencode_video(vp, out_dir=None):
         log.warning(f"[ReEncode] Error: {e} — original use kar raha hoon")
         return vp
 
+def probe_media_file(path):
+    """
+    ffprobe se media ki basic health check karo.
+    Small valid shorts ko false-invalid mark hone se bachata hai.
+    """
+    info = {
+        "ok": False,
+        "duration": 0.0,
+        "has_video": False,
+        "width": 0,
+        "height": 0,
+    }
+    if not path or not os.path.exists(path):
+        return info
+    try:
+        probe = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path],
+            capture_output=True, timeout=30
+        )
+        if probe.returncode != 0 or not probe.stdout:
+            return info
+        meta = _json_mod.loads(probe.stdout)
+        fmt = meta.get("format", {}) or {}
+        streams = meta.get("streams", []) or []
+        duration = float(fmt.get("duration") or 0)
+        for s in streams:
+            if s.get("codec_type") == "video":
+                info["has_video"] = True
+                info["width"] = int(s.get("width") or 0)
+                info["height"] = int(s.get("height") or 0)
+                if not duration:
+                    duration = float(s.get("duration") or 0)
+                break
+        info["duration"] = duration
+        info["ok"] = info["has_video"] and duration > 0
+        return info
+    except Exception:
+        return info
+
+def validate_download_file(path, expected_duration=0):
+    """
+    Source listing verify hone ka matlab yeh nahi ke actual downloaded file bhi playable ho.
+    Ab size ki wajah se block nahi karte; sirf itna dekhte hain ke file real video hai.
+    """
+    size_mb = round(os.path.getsize(path) / (1024 * 1024), 1)
+    if size_mb >= 0.5:
+        return True, f"{size_mb}MB"
+
+    meta = probe_media_file(path)
+    if not meta["ok"]:
+        return False, f"{size_mb}MB and ffprobe validate fail"
+
+    return True, (
+        f"{size_mb}MB (small but valid: {float(meta['duration'] or 0):.1f}s, "
+        f"{meta['width']}x{meta['height']})"
+    )
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ✅ #3 DISK SPACE CHECK
 # Download se pehle dekho: kafi free space hai ya nahi
@@ -639,9 +730,9 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
             "player_client": ["tv", "web", "mweb"],
         }
     }
-    _cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
-    if os.path.exists(_cookie_file) and os.path.getsize(_cookie_file) > 100:
-        opts["cookiefile"] = _cookie_file
+    cookie_file = get_youtube_cookiefile()
+    if cookie_file:
+        opts["cookiefile"] = cookie_file
     entries = []
     for u in ([base+"/shorts", base] if "/shorts" not in base else [base]):
         try:
@@ -1026,10 +1117,10 @@ def download_youtube(url, proxy=""):
             },
         },
     }
-    # Optional: agar cookies file ho to use karo (extra safety, zaroori nahi)
-    _cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
-    if os.path.exists(_cookie_file) and os.path.getsize(_cookie_file) > 100:
-        extra["cookiefile"] = _cookie_file
+    # Optional: toggle ON ho to hi cookies use karo
+    cookie_file = get_youtube_cookiefile()
+    if cookie_file:
+        extra["cookiefile"] = cookie_file
     return _dlbase(url, os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"), extra, proxy)
 
 def download_tiktok(url, proxy=""):
@@ -1467,20 +1558,18 @@ def _do_download(v, stype, proxy, lpath, lpos, lop, lsc, cid=None):
 
             # ── #10 Log success with actual file size ──────────────────────
             if cid and path and os.path.exists(path):
-                actual_mb = round(os.path.getsize(path) / (1024*1024), 1)
-
-                # ✅ FIX: 0.1MB "downloads" = YouTube bot-block (fake/empty file)
-                # Real video min ~0.5MB hoti hai — chhoti file invalid hai
-                if actual_mb < 0.5:
+                ok_media, media_note = validate_download_file(path, expected_duration=dur)
+                if not ok_media:
                     db_log(cid, "WARN",
-                        f"⚠️ [{plat_label}] Download invalid — sirf {actual_mb}MB mila "
-                        f"(YouTube block / yt-dlp purana hai). Skip: {v.get('title','?')[:60]}")
+                        f"⚠️ [{plat_label}] Download invalid — {media_note}. "
+                        f"Retry later: {v.get('title','?')[:60]}")
                     try:
                         if path and os.path.exists(path): os.remove(path)
-                    except Exception: pass
-                    raise RuntimeError(f"INVALID_DOWNLOAD: {actual_mb}MB too small")
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"INVALID_DOWNLOAD: {media_note}")
 
-                db_log(cid, "INFO", f"✅ [{plat_label}] Download kamyab: {actual_mb}MB" +
+                db_log(cid, "INFO", f"✅ [{plat_label}] Download kamyab: {media_note}" +
                        (f" (attempt {attempt}/{DL_RETRY_ATTEMPTS})" if attempt > 1 else ""))
             return path, fi
 
@@ -1736,8 +1825,9 @@ def _run_worker(cid):
                             se.wait(3600); continue
 
                 # ── v8: Ek baar known_ids load karo — O(1) lookup ─────────────
-                known_ids = get_uploaded_ids(cid, pid)
-                rem       = dlimit - done
+                known_ids    = get_uploaded_ids(cid, pid)
+                cooldown_ids = get_retry_cooldown_ids(cid)
+                rem          = dlimit - done
 
                 # ── Source select with FALLBACK ────────────────────────────────
                 all_sources = get_ordered_sources(ch)
@@ -1769,13 +1859,19 @@ def _run_worker(cid):
 
                     if _videos:
                         _videos = apply_sort(_videos, sort)
-                        _new_vs = [v for v in _videos if v["id"] not in known_ids] if _stype not in ("photos","local") else _videos
+                        _new_vs = [
+                            v for v in _videos
+                            if v["id"] not in known_ids and v["id"] not in cooldown_ids
+                        ] if _stype not in ("photos","local") else _videos
                         if _new_vs:
                             new_vs=_new_vs; stype=_stype; surl=_surl
                             db_log(cid,"INFO",f"[{_src_label}] {len(_new_vs)} nai videos mili")
                             break
                         else:
-                            db_log(cid,"INFO",f"[{_src_label}] Saari videos pehle se upload — next source try")
+                            if _stype not in ("photos", "local") and cooldown_ids:
+                                db_log(cid,"INFO",f"[{_src_label}] Upload/cooldown wali videos mili — next source try")
+                            else:
+                                db_log(cid,"INFO",f"[{_src_label}] Saari videos pehle se upload — next source try")
                     else:
                         db_log(cid,"WARN",f"[{_src_label}] Koi video nahi mili — next source try")
 
@@ -1849,8 +1945,9 @@ def _run_worker(cid):
                     status, v, path, fi_or_err = item
 
                     if status == "err":
-                        mark_uploaded(cid,v["id"],v["title"],pid,"",status="skipped",platform=stype)
-                        known_ids.add(v["id"])
+                        mark_uploaded(cid,v["id"],v["title"],pid,"",status="retry",platform=stype)
+                        cooldown_ids.add(v["id"])
+                        db_log(cid,"WARN",f"↻ Retry later (transient download fail): {v['title']}")
                         continue
 
                     # ✅ FIX: Age-restricted video — permanent skip, dobara try nahi
@@ -1945,7 +2042,7 @@ def _run_worker(cid):
                                     resolve_notification(cid, "INTERVAL_WAIT")
                                 elif more_parts or more_vids:
                                     # ✅ Human-like gap — 3-8 min random delay
-                                    delay = 20
+                                    delay = 45
                                     next_t = (datetime.now(PKT) + timedelta(seconds=delay)).strftime("%I:%M %p")
                                     db_log(cid, "INFO",
                                         f"⏳ Next upload: {next_t} ET ({delay} sec baad)")
