@@ -1,15 +1,13 @@
 """
 bot_worker.py — YouTube + TikTok + Instagram + Photos → Facebook Bot
-v11 PRO — YouTube Download TikTok-Style Update:
+v10 PRO — DB Architecture Upgrade + Structured Logging:
   ✅ v9: All 10 upgrades (retry, log flush, disk check, rate limit backoff, etc.)
-  ✅ v10 NEW:
+  🔥 v10 NEW:
      ✅ #11 GLOBAL PAGE SCHEMA    — pages + account_pages (no duplicates)
      ✅ #12 STRUCTURED LOGGING    — request_id, stack traces, retry logs
      ✅ #13 POSTGRESQL SUPPORT    — set DATABASE_URL env var to switch
      ✅ #14 TOKEN CONFLICT FIX    — newest valid token always wins
      ✅ #15 OWNERSHIP TRANSFER    — auto-reassign pages on account disconnect
-  🔥 v11 NEW:
-     ✅ #16 YOUTUBE DOWNLOAD = TIKTOK STYLE — h264 first, merge_output_format=mp4
 """
 
 import os, re, time, random, logging, sqlite3, threading, subprocess, requests, yt_dlp, queue, shutil, glob
@@ -786,9 +784,13 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy="", sort_order
     }
     opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7
+            "player_client": ["ios", "tv", "android"],  # ✅ ios first — EC2 bot detection bypass
         }
     }
+    # ✅ FIX EC2: Node.js JS runtime use karo — "No JS runtime" warning fix
+    import shutil as _shutil
+    if _shutil.which("node"):
+        opts["extractor_args"]["youtube"]["js_runtimes"] = ["nodejs"]
     cookie_file = get_youtube_cookiefile()
     if cookie_file:
         opts["cookiefile"] = cookie_file
@@ -1183,16 +1185,11 @@ def _ffile(path):
     raise FileNotFoundError(path)
 
 def download_youtube(url, proxy=""):
-    # ✅ v11: TikTok jaisi download strategy — same format chain, same merge
-    # Format chain (TikTok se match):
-    #   1st: h264 video + m4a audio  → Facebook reels ke liye best codec
-    #   2nd: koi bhi mp4 + m4a audio → fallback
-    #   3rd: h264 mp4 progressive    → purane videos
-    #   4th: koi bhi mp4             → last resort mp4
-    #   5th: best[ext=mp4]           → generic mp4
-    #   6th: best                    → bilkul last resort
-    # merge_output_format: "mp4" → TikTok jaisa explicit — webm merge nahi hogi
-    # player_client: tv+ios+android → YouTube ke liye 3 reliable clients
+    # ✅ v11: TikTok jaisi format chain + EC2 bot detection fix
+    # ios client FIRST — EC2 pe sabse reliable, bot check kam
+    # nodejs runtime — "No JS runtime" warning fix
+    # h264 explicit — Facebook reels ke liye best codec
+    import shutil as _sh
     extra = {
         "format": (
             "bestvideo[vcodec^=h264][ext=mp4]+bestaudio[ext=m4a]"
@@ -1202,10 +1199,14 @@ def download_youtube(url, proxy=""):
         "merge_output_format": "mp4",
         "extractor_args": {
             "youtube": {
-                "player_client": ["tv", "ios", "android"],
+                # ✅ ios FIRST — EC2 pe bot detection kam hoti hai
+                "player_client": ["ios", "tv", "android"],
             },
         },
     }
+    # ✅ FIX EC2: Node.js available hai to JS runtime set karo
+    if _sh.which("node"):
+        extra["extractor_args"]["youtube"]["js_runtimes"] = ["nodejs"]
     # Optional: toggle ON ho to hi cookies use karo
     cookie_file = get_youtube_cookiefile()
     if cookie_file:
