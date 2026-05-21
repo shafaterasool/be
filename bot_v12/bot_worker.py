@@ -18,8 +18,13 @@ from concurrent.futures import ThreadPoolExecutor
 
 log = logging.getLogger("bot_worker")
 
+# ✅ FIX: Absolute paths — Windows pe CWD change se file-not-found bug fix
+_BOT_DIR            = os.path.dirname(os.path.abspath(__file__))
+DOWNLOADS_DIR       = os.path.join(_BOT_DIR, "downloads")
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+
 SHORT_MAX_DURATION  = 200
-LOCAL_UPLOADS_DIR   = "./local_uploads"      # ✅ v9+: Local device uploads folder
+LOCAL_UPLOADS_DIR   = os.path.join(_BOT_DIR, "local_uploads")  # ✅ FIX: absolute path
 PKT                 = timezone(timedelta(hours=-4))  # ✅ USA Eastern Time (ET/EDT, UTC-4 daylight saving)
 _DB_PATH            = "data.db"
 MIN_FREE_MB         = 500          # ✅ #3 Disk: itni free space chahiye (MB)
@@ -411,7 +416,8 @@ def _popt(proxy_str):
 _POS = {"top_left":"20:20","top_right":"W-w-20:20","bottom_left":"20:H-h-20",
         "bottom_right":"W-w-20:H-h-20","center":"(W-w)/2:(H-h)/2"}
 
-def apply_watermark(vp, lp, pos="bottom_right", op=0.5, sc=0.15, out_dir="./downloads"):
+def apply_watermark(vp, lp, pos="bottom_right", op=0.5, sc=0.15, out_dir=None):
+    if out_dir is None: out_dir = DOWNLOADS_DIR
     if not lp or not os.path.exists(lp.strip()): return vp
     op=max(0.1,min(1.0,float(op))); sc=max(0.03,min(0.5,float(sc)))
     pe = random.choice(list(_POS.values())) if pos=="random" else _POS.get(pos,_POS["bottom_right"])
@@ -442,7 +448,8 @@ def apply_watermark(vp, lp, pos="bottom_right", op=0.5, sc=0.15, out_dir="./down
 # Result: Facebook/YouTube ContentID same video nahi pehchan pata
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def reencode_video(vp, out_dir="./downloads"):
+def reencode_video(vp, out_dir=None):
+    if out_dir is None: out_dir = DOWNLOADS_DIR
     """
     Video ko re-encode karo taake fingerprint change ho.
     Watermark ke sath ya bina dono cases mein kaam karta hai.
@@ -498,7 +505,8 @@ def reencode_video(vp, out_dir="./downloads"):
 # Download se pehle dekho: kafi free space hai ya nahi
 # Agar nahi to skip karo + warn karo
 # ═══════════════════════════════════════════════════════════════════════════════
-def check_disk_space(path="./downloads", min_mb=MIN_FREE_MB):
+def check_disk_space(path=None, min_mb=MIN_FREE_MB):
+    if path is None: path = DOWNLOADS_DIR
     """
     True  → enough space, proceed
     False → low disk, skip download
@@ -526,7 +534,8 @@ def check_disk_space(path="./downloads", min_mb=MIN_FREE_MB):
 import json as _json_mod
 import math as _math_mod
 
-def split_video(video_path, seconds_per_part, out_dir="./downloads", cid=None):
+def split_video(video_path, seconds_per_part, out_dir=None, cid=None):
+    if out_dir is None: out_dir = DOWNLOADS_DIR
     """
     Video ko equal parts mein split karo using ffmpeg.
     Returns: (list of part file paths, total_parts)
@@ -620,8 +629,14 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy=""):
         "socket_timeout": 30,
         **yo
     }
-    # ✅ FIX: Age-restricted channels ke liye cookies load karo
-    _cookie_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yt_cookies.txt")
+    # ✅ FIX v2: PO Token bypass — ios/tv_embedded clients cookies ke bina kaam karte hain
+    opts["extractor_args"] = {
+        "youtube": {
+            "player_client": ["ios", "tv_embedded", "mweb"],
+            "player_skip": ["webpage"],
+        }
+    }
+    _cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
     if os.path.exists(_cookie_file) and os.path.getsize(_cookie_file) > 100:
         opts["cookiefile"] = _cookie_file
     entries = []
@@ -726,16 +741,42 @@ def fetch_instagram_reels(url, known_ids=None, max_new=100, proxy=""):
             save_metadata=False,
         )
 
-        # LOAD SESSION
-        session_file = os.path.join(
-            "ig_sessions",
-            f"session-shrs0402"
-        )
+        # ✅ FIX: Hardcoded username hata diya — ab kisi bhi account ki session load hogi
+        # Step 1: ig_session_meta.json se active username lo
+        # Step 2: us username ki session file load karo
+        # Step 3: agar meta nahi to ig_sessions/ folder mein jo bhi pehli session mile
+        _ig_meta_file = os.path.join(_BOT_DIR, "ig_session_meta.json")
+        _ig_sess_dir  = os.path.join(_BOT_DIR, "ig_sessions")
+        _active_user  = None
 
-        L.load_session_from_file(
-            "shrs0402",
-            session_file
-        )
+        if os.path.exists(_ig_meta_file):
+            try:
+                import json as _json
+                with open(_ig_meta_file) as _mf:
+                    _meta = _json.load(_mf)
+                _active_user = _meta.get("username", "").strip()
+            except Exception: pass
+
+        # Fallback: ig_sessions/ mein pehli session file dhundo
+        if not _active_user and os.path.isdir(_ig_sess_dir):
+            for _fn in os.listdir(_ig_sess_dir):
+                if _fn.startswith("session-"):
+                    _active_user = _fn[len("session-"):]
+                    break
+
+        if not _active_user:
+            log.warning("[IG] Koi active Instagram session nahi mili. "
+                        "Pehle app mein Instagram login karein.")
+            return []
+
+        session_file = os.path.join(_ig_sess_dir, f"session-{_active_user}")
+
+        if not os.path.exists(session_file):
+            log.warning(f"[IG] Session file nahi mili: {session_file}")
+            return []
+
+        L.load_session_from_file(_active_user, session_file)
+        log.info(f"[IG] Session load ho gayi: @{_active_user}")
 
         profile = Profile.from_username(
             L.context,
@@ -924,7 +965,8 @@ def fetch_google_drive_videos(gdrive_url, known_ids=None, max_new=5000, proxy=""
         log.warning(f"[GDrive] fetch error: {ex}")
     return out
 
-def convert_photo_to_video(img, out_dir="./downloads", dur=15):
+def convert_photo_to_video(img, out_dir=None, dur=15):
+    if out_dir is None: out_dir = DOWNLOADS_DIR
     os.makedirs(out_dir, exist_ok=True)
     out = os.path.join(out_dir, "photo_"+os.path.splitext(os.path.basename(img))[0]+".mp4")
     cmd = ["ffmpeg","-y","-loop","1","-i",img,"-c:v","libx264","-t",str(dur),
@@ -936,7 +978,7 @@ def convert_photo_to_video(img, out_dir="./downloads", dur=15):
 
 # ─── Downloads ────────────────────────────────────────────────────────────────
 def _dlbase(url, tmpl, extra_opts, proxy):
-    os.makedirs("./downloads", exist_ok=True)
+    os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     yo, _ = _popt(proxy)
     opts  = {**{
         "quiet": True, "no_warnings": True, "merge_output_format": "mp4",
@@ -965,24 +1007,30 @@ def _ffile(path):
     raise FileNotFoundError(path)
 
 def download_youtube(url, proxy=""):
-    # ✅ FIX: Age-restricted bypass — 3 layer (cookies ke bina bhi kaam karta hai)
-    # Layer 1: age_limit=21 already in _dlbase (global)
-    # Layer 2: Android player client — YouTube age check nahi karta Android pe
-    # Layer 3: Direct MP4 formats 18/22 (merge nahi karte, age-restricted pe better)
+    # ✅ FIX v2: YouTube PO Token bypass — cookies ke bina bhi kaam karta hai
+    # Problem: "android"+"web" clients 2025 mein YouTube PO Token maangne lage
+    #          PoToken nahi = 0.1MB fake file milti hai (real video nahi)
+    # Solution: "ios" + "tv_embedded" clients PO Token nahi maangaate
+    #   ios         → real iPhone app request — YouTube full video deta hai
+    #   tv_embedded → Smart TV client — PO token requirement nahi
+    #   mweb        → Mobile browser — fallback
     extra = {
         "format": "18/22/best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "extractor_args": {
-            "youtube": {"player_client": ["android", "web"]},
+            "youtube": {
+                "player_client": ["ios", "tv_embedded", "mweb"],
+                "player_skip": ["webpage"],   # webpage skip = faster + bot detection kam
+            },
         },
     }
-    # Bonus: agar cookies file bhi ho to use karo (optional extra safety)
-    _cookie_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "yt_cookies.txt")
+    # Optional: agar cookies file ho to use karo (extra safety, zaroori nahi)
+    _cookie_file = os.path.join(_BOT_DIR, "yt_cookies.txt")
     if os.path.exists(_cookie_file) and os.path.getsize(_cookie_file) > 100:
         extra["cookiefile"] = _cookie_file
-    return _dlbase(url, "./downloads/%(id)s.%(ext)s", extra, proxy)
+    return _dlbase(url, os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"), extra, proxy)
 
 def download_tiktok(url, proxy=""):
-    return _dlbase(url,"./downloads/%(id)s.%(ext)s",
+    return _dlbase(url,os.path.join(DOWNLOADS_DIR, "%(id)s.%(ext)s"),
                    {"format":"mp4[vcodec^=h264][acodec^=mp4a]/mp4[vcodec^=avc]/bestvideo[ext=mp4][vcodec^=avc]+bestaudio[ext=m4a]/best[ext=mp4]/best",
                     "extractor_args":{"tiktok":{"api_hostname":"api16-normal-c-useast1a.tiktokv.com","app_version":"36.1.3"}}},proxy)
 
@@ -992,7 +1040,7 @@ def download_instagram(url, proxy=""):
     ig_cookies = _ig_session.get_cookies_file()
     if ig_cookies:
         extra["cookiefile"] = ig_cookies
-    return _dlbase(url, "./downloads/ig_%(id)s.%(ext)s", extra, proxy)
+    return _dlbase(url, os.path.join(DOWNLOADS_DIR, "ig_%(id)s.%(ext)s"), extra, proxy)
 
 # ─── Caption ──────────────────────────────────────────────────────────────────
 def build_caption(ch, vm, fi):
@@ -1026,6 +1074,7 @@ def build_caption(ch, vm, fi):
 CHUNK          = 20 * 1024 * 1024
 FB_RATE_CODES  = {32, 613}          # FB graph rate limit error codes
 FB_RATE_WAITS  = [10, 20, 40]       # ✅ #9: backoff: 10s, 20s, 40s
+FB_500_WAITS   = [15, 30, 60]       # ✅ FIX: Facebook 500 Server Error retry
 
 def upload_to_facebook(pid, tok, fpath, title, caption, proxy=""):
     """
@@ -1097,7 +1146,8 @@ def upload_to_facebook(pid, tok, fpath, title, caption, proxy=""):
         log.info(f"[Reels] ✅ Upload complete — video_id: {video_id}")
         return video_id
 
-    # ✅ #9: Retry loop with exponential backoff for rate limits
+    # ✅ #9: Retry loop with exponential backoff for rate limits + 500 errors
+    _500_attempts = 0
     for attempt, wait in enumerate(FB_RATE_WAITS + [None], start=1):
         try:
             return _do_upload()
@@ -1107,6 +1157,15 @@ def upload_to_facebook(pid, tok, fpath, title, caption, proxy=""):
                     if wait is not None:
                         log.warning(f"[FB] HTTP 429 rate limit — {wait}s baad retry (attempt {attempt})")
                         time.sleep(wait)
+                        continue
+                    raise
+                # ✅ FIX: Facebook 500 Server Error — random FB issue, retry karein
+                if e.response.status_code == 500:
+                    if _500_attempts < len(FB_500_WAITS):
+                        w500 = FB_500_WAITS[_500_attempts]
+                        _500_attempts += 1
+                        log.warning(f"[FB] HTTP 500 Server Error — {w500}s baad retry (attempt {_500_attempts})")
+                        time.sleep(w500)
                         continue
                     raise
                 try: ec = e.response.json().get("error", {}).get("code", 0)
@@ -1319,7 +1378,7 @@ def _do_download(v, stype, proxy, lpath, lpos, lop, lsc, cid=None):
     ✅ #8: Register/unregister temp files for crash cleanup
     """
     # ── #3 Disk space check ────────────────────────────────────────────────
-    if not check_disk_space("./downloads", MIN_FREE_MB):
+    if not check_disk_space(DOWNLOADS_DIR, MIN_FREE_MB):
         raise RuntimeError(f"Disk space kam hai! Min {MIN_FREE_MB}MB chahiye.")
 
     # ── ✅ Local file: direct path — download ki zaroorat nahi ────────────
@@ -1375,15 +1434,26 @@ def _do_download(v, stype, proxy, lpath, lpos, lop, lsc, cid=None):
             # ── ✅ RE-ENCODE — fingerprint change karo (watermark ke baad) ──
             if path and os.path.exists(path):
                 if cid: db_log(cid, "INFO", f"🔄 [{plat_label}] Re-encoding (fingerprint change)...")
-                path = reencode_video(path, out_dir="./downloads")
+                path = reencode_video(path, out_dir=None)
                 if cid: db_log(cid, "INFO", f"✅ [{plat_label}] Re-encode complete")
 
             # ── #10 Log success with actual file size ──────────────────────
             if cid and path and os.path.exists(path):
                 actual_mb = round(os.path.getsize(path) / (1024*1024), 1)
+
+                # ✅ FIX: 0.1MB "downloads" = YouTube bot-block (fake/empty file)
+                # Real video min ~0.5MB hoti hai — chhoti file invalid hai
+                if actual_mb < 0.5:
+                    db_log(cid, "WARN",
+                        f"⚠️ [{plat_label}] Download invalid — sirf {actual_mb}MB mila "
+                        f"(YouTube block / yt-dlp purana hai). Skip: {v.get('title','?')[:60]}")
+                    try:
+                        if path and os.path.exists(path): os.remove(path)
+                    except Exception: pass
+                    raise RuntimeError(f"INVALID_DOWNLOAD: {actual_mb}MB too small")
+
                 db_log(cid, "INFO", f"✅ [{plat_label}] Download kamyab: {actual_mb}MB" +
                        (f" (attempt {attempt}/{DL_RETRY_ATTEMPTS})" if attempt > 1 else ""))
-
             return path, fi
 
         except Exception as e:
@@ -1773,7 +1843,7 @@ def _run_worker(cid):
                     # ✅ VIDEO SPLITTING — agar split_duration set hai to split karo
                     # ═══════════════════════════════════════════════════════════
                     if split_dur > 0 and path and os.path.exists(path) and stype != "local":
-                        part_paths, total_parts = split_video(path, split_dur, "./downloads", cid=cid)
+                        part_paths, total_parts = split_video(path, split_dur, DOWNLOADS_DIR, cid=cid)
                     else:
                         part_paths  = [path]
                         total_parts = 1
