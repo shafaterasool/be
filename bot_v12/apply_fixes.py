@@ -79,6 +79,7 @@ def refresh_cookies(headless=True):
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
+            executable_path="/usr/bin/chromium-browser",
             headless=headless,
             args=[
                 "--no-sandbox", "--disable-setuid-sandbox",
