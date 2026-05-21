@@ -1,13 +1,15 @@
 """
 bot_worker.py — YouTube + TikTok + Instagram + Photos → Facebook Bot
-v10 PRO — DB Architecture Upgrade + Structured Logging:
+v11 PRO — YouTube Download TikTok-Style Update:
   ✅ v9: All 10 upgrades (retry, log flush, disk check, rate limit backoff, etc.)
-  🔥 v10 NEW:
+  ✅ v10 NEW:
      ✅ #11 GLOBAL PAGE SCHEMA    — pages + account_pages (no duplicates)
      ✅ #12 STRUCTURED LOGGING    — request_id, stack traces, retry logs
      ✅ #13 POSTGRESQL SUPPORT    — set DATABASE_URL env var to switch
      ✅ #14 TOKEN CONFLICT FIX    — newest valid token always wins
      ✅ #15 OWNERSHIP TRANSFER    — auto-reassign pages on account disconnect
+  🔥 v11 NEW:
+     ✅ #16 YOUTUBE DOWNLOAD = TIKTOK STYLE — h264 first, merge_output_format=mp4
 """
 
 import os, re, time, random, logging, sqlite3, threading, subprocess, requests, yt_dlp, queue, shutil, glob
@@ -1181,18 +1183,26 @@ def _ffile(path):
     raise FileNotFoundError(path)
 
 def download_youtube(url, proxy=""):
-    # ✅ FIX Bug#6 Bug#7: Format + Client update
-    # Format: bv*+ba = best video + best audio (adaptive streams support)
-    #         18/22 OLD progressive formats thay — Shorts/adaptive streams fail hoti theen
-    # Clients: tv + ios + android — teen reliable clients, PO Token nahi maangaate
-    #   tv      → Smart TV client — 2026 mein sabse reliable
-    #   ios     → iPhone app — real video milti hai
-    #   android → Android app — extra fallback
+    # ✅ v11: TikTok jaisi download strategy — same format chain, same merge
+    # Format chain (TikTok se match):
+    #   1st: h264 video + m4a audio  → Facebook reels ke liye best codec
+    #   2nd: koi bhi mp4 + m4a audio → fallback
+    #   3rd: h264 mp4 progressive    → purane videos
+    #   4th: koi bhi mp4             → last resort mp4
+    #   5th: best[ext=mp4]           → generic mp4
+    #   6th: best                    → bilkul last resort
+    # merge_output_format: "mp4" → TikTok jaisa explicit — webm merge nahi hogi
+    # player_client: tv+ios+android → YouTube ke liye 3 reliable clients
     extra = {
-        "format": "bv*+ba/b[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+        "format": (
+            "bestvideo[vcodec^=h264][ext=mp4]+bestaudio[ext=m4a]"
+            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
+            "/mp4[vcodec^=h264]/mp4/best[ext=mp4]/best"
+        ),
+        "merge_output_format": "mp4",
         "extractor_args": {
             "youtube": {
-                "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7
+                "player_client": ["tv", "ios", "android"],
             },
         },
     }
