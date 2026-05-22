@@ -753,6 +753,25 @@ def split_video(video_path, seconds_per_part, out_dir=None, cid=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 EARLY_STOP_COUNT = 30   # ✅ FIX Bug#3: 8 se 30 — 8 pe bahut jaldi ruk jata tha
 
+# ✅ YouTube OAuth2 helper — Instagram jaisa persistent session
+def _yt_oauth2_available():
+    """
+    yt-dlp-youtube-oauth2 plugin installed aur token saved hai to True.
+    Ek baar login: yt-dlp --username oauth2 --password "" URL
+    Token: ~/.config/yt-dlp/youtube-oauth2.token
+    """
+    try:
+        import importlib
+        if not importlib.util.find_spec("yt_dlp_youtube_oauth2"):
+            return False
+        token_paths = [
+            os.path.expanduser("~/.config/yt-dlp/youtube-oauth2.token"),
+            os.path.join(_BOT_DIR, "youtube-oauth2.token"),
+        ]
+        return any(os.path.exists(p) and os.path.getsize(p) > 10 for p in token_paths)
+    except Exception:
+        return False
+
 def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy="", sort_order="old_to_new"):
     """
     ✅ FIX Sort-Mode Bug:
@@ -784,16 +803,17 @@ def fetch_youtube_shorts(url, known_ids=None, max_new=5000, proxy="", sort_order
     }
     opts["extractor_args"] = {
         "youtube": {
-            "player_client": ["ios", "tv", "android"],  # ✅ ios first — EC2 bot detection bypass
+            "player_client": ["tv", "ios", "android"],
         }
     }
-    # ✅ FIX EC2: Node.js JS runtime use karo — "No JS runtime" warning fix
-    import shutil as _shutil
-    if _shutil.which("node"):
-        opts["extractor_args"]["youtube"]["js_runtimes"] = ["nodejs"]
-    cookie_file = get_youtube_cookiefile()
-    if cookie_file:
-        opts["cookiefile"] = cookie_file
+    # ✅ OAuth2 first, cookies fallback — Instagram jaisa persistent login
+    if _yt_oauth2_available():
+        opts["username"] = "oauth2"
+        opts["password"] = ""
+    else:
+        cookie_file = get_youtube_cookiefile()
+        if cookie_file:
+            opts["cookiefile"] = cookie_file
     entries = []
     for u in ([base+"/shorts", base] if "/shorts" not in base else [base]):
         try:
@@ -1185,28 +1205,21 @@ def _ffile(path):
     raise FileNotFoundError(path)
 
 def download_youtube(url, proxy=""):
-    # ✅ v11: TikTok jaisi format chain + EC2 bot detection fix
-    # ios client FIRST — EC2 pe sabse reliable, bot check kam
-    # nodejs runtime — "No JS runtime" warning fix
-    # h264 explicit — Facebook reels ke liye best codec
-    import shutil as _sh
+    # ✅ FIX Bug#6 Bug#7: Format + Client update
+    # Format: bv*+ba = best video + best audio (adaptive streams support)
+    #         18/22 OLD progressive formats thay — Shorts/adaptive streams fail hoti theen
+    # Clients: tv + ios + android — teen reliable clients, PO Token nahi maangaate
+    #   tv      → Smart TV client — 2026 mein sabse reliable
+    #   ios     → iPhone app — real video milti hai
+    #   android → Android app — extra fallback
     extra = {
-        "format": (
-            "bestvideo[vcodec^=h264][ext=mp4]+bestaudio[ext=m4a]"
-            "/bestvideo[ext=mp4]+bestaudio[ext=m4a]"
-            "/mp4[vcodec^=h264]/mp4/best[ext=mp4]/best"
-        ),
-        "merge_output_format": "mp4",
+        "format": "bv*+ba/b[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "extractor_args": {
             "youtube": {
-                # ✅ ios FIRST — EC2 pe bot detection kam hoti hai
-                "player_client": ["ios", "tv", "android"],
+                "player_client": ["tv", "ios", "android"],  # ✅ FIX Bug#7
             },
         },
     }
-    # ✅ FIX EC2: Node.js available hai to JS runtime set karo
-    if _sh.which("node"):
-        extra["extractor_args"]["youtube"]["js_runtimes"] = ["nodejs"]
     # Optional: toggle ON ho to hi cookies use karo
     cookie_file = get_youtube_cookiefile()
     if cookie_file:
